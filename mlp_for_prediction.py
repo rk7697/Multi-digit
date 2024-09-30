@@ -1,11 +1,4 @@
-print("hey!")
-print("hey!")
-print("hey!")
-print("hey!")
-print("hey!")
-print("hey!")
-print("wait!")
-print("wft")
+print("check")
 import torch
 import torch.nn as nn
 import pandas as pd
