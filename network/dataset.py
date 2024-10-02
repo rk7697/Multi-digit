@@ -1,12 +1,51 @@
-from torchvision import datasets
-from torchvision import transforms
+import random
+from torchvision import (
+    datasets,
+    transforms
+)
 
-#Calculate padding to pad reach 500x500 from 28x28
-padding=(500-28)//2
+#Rotate image by a randomly selected angle between MIN_ANGLE and MAX_ANGLE degrees
+def rotate_img(image):
+    MIN_ANGLE = -15
+    MAX_ANGLE = 15
+    angle=random.uniform(MIN_ANGLE,MAX_ANGLE)
+    return transforms.functional.Rotate(img=image,angle=angle)
+
+#Pad image with specified new size 
+#and shift image center to a random location
+def pad_shift(image,new_size_width,new_size_height):
+    image_height=image.size(0)
+    image_width=image.size(1)
+
+    #Move the center to a random place in the valid range
+    half_image_height = image_height//2,
+    half_image_width = image_width//2,
+
+    new_center_y = random.uniform(half_image_height, new_size_height - half_image_height)
+    new_center_x = random.uniform(half_image_width, new_size_width - half_image_width)
+
+    #Define padding (left, right, top bottom)
+    padding_left = new_center_x - half_image_width
+    padding_right = new_size_width - (new_center_x + half_image_width)
+    padding_bottom = new_center_y - half_image_height
+    padding_top = new_size_height - (new_center_y + half_image_height)
+    image = transform.pad(image, (padding_left,padding_right,padding_top,padding_bottom))
+    return image
+
+
+    
+
+#Set new_size to be 500,500 for MNIST image
+new_size_width=500
+new_size_height=500
 
 transform = transforms.Compose([
-    transforms.Pad(padding=padding,fill=255), #Pad 
-    transforms.ToTensor()
+    transforms.ToTensor(),
+    transforms.Lambda(lambda x: 1-x), #Invert image to black with white background
+    rotate_img(), #Rotate image by a random angle in the specified interval
+    transforms.Lambda(lambda x: pad_shift(x, new_size_width, new_size_height)), #Shift center of image to random location in the specified new image dimensions   
 ])
 
-dataset = datasets.MNIST("./data",train=True,download=True,transform=transform)
+train_dataset = datasets.MNIST("./data",train=True,download=False,transform=transform)
+test_dataset = datasets.MNIST("./data",train=False,download=False,transform=transform)
+exit()
