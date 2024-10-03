@@ -15,7 +15,7 @@ def canny_edge_detection(image):
 
     # Set threshold for weak and strong edges to 1
     threshold_1 = 1
-    threshold_2 = 5
+    threshold_2 = 1
     img_edges = Canny(img_array, threshold1=threshold_1, threshold2=threshold_2)
     return img_edges
 
@@ -54,8 +54,8 @@ new_size_width=50
 new_size_height=50
 
 transform = transforms.Compose([
-    transforms.Lambda(lambda img: canny_edge_detection(img)),
-    transforms.ToTensor(), # Convert NumPy array to tensor
+    # transforms.Lambda(lambda img: canny_edge_detection(img)),
+    transforms.ToTensor(), # Convert to tensor
     transforms.Normalize(mean=0, std=1), # Normalizer the tensor
     rotate_img, # Rotate image by a random angle in the specified interval
     transforms.Lambda(lambda img: pad_shift(img, new_size_width, new_size_height)), # Shift center of image to random location in the specified new image dimensions   

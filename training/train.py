@@ -10,7 +10,7 @@ import torch.optim as optim
 
 
 # Create logger to log training errors in specified directory
-logging.basicConfig(filemode="./training/logs/training_error.log", level=logging.INFO)
+logging.basicConfig(filename="./training/logs/training_error.log", level=logging.INFO)
 
 # Instantiate network
 multi_digit_net = multi_digit()
@@ -49,6 +49,8 @@ def train(network, num_epochs, train_dataloader):
                 epoch_progress = (epoch + batch_index / num_batches) / num_epochs # Calculate progress of the current epoch based on batch_index
                 print(f"error: {avg_error:.5f} percent: {epoch_progress:.2f}")
 
+                logging.info("") # Log the printed error and epoch progress
+
 def plot_error(error_log, num_epochs):
     num_samples = len(error_log)
 
@@ -67,5 +69,3 @@ torch.save(multi_digit_net.state_dict(), "./network/network_weights.pth")
 
 #Call plot_error
 plot_error(error_log=error_log, num_epochs=NUM_EPOCHS)
-
-

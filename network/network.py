@@ -1,6 +1,4 @@
-import torch
 import torch.nn as nn
-
 
 class multi_digit(nn.Module):
     def __init__(self):
