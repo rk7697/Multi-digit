@@ -1,9 +1,21 @@
+import torchvision.transforms as transforms
 from .dataloaders import (
     train_dataloader,
     test_dataloader
 )
+import matplotlib.pyplot as plt
+
+to_pil = transforms.ToPILImage()
 
 for imgs, labels in train_dataloader:
+    print(imgs.shape)
+    imgs=imgs[0]
+    img=to_pil(imgs)
+    plt.imshow(img, cmap='gray')
+    plt.show()
+
+    
+    exit()
     print(imgs.shape)
     exit()
 # class net(nn.Module):

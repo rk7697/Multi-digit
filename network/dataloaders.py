@@ -5,7 +5,7 @@ from .datasets import (
 )
 
 
-train_dataloader =DataLoader(train_dataset, batch_size=1, shuffle=True)
-test_dataloader =DataLoader(test_dataset, batch_size=1, shuffle=False)
+train_dataloader = DataLoader(train_dataset, batch_size=1, shuffle=True)
+test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
 
 
