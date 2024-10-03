@@ -14,11 +14,11 @@ def test(network, test_dataloader):
     total_accuracy = 0
 
     for (img, label) in test_dataloader:
-        logits = network.forward(img)
+        logits = network(img)
         prediction = torch.argmax(logits)
 
         if(prediction == label):
-            accuracy +=1
+            total_accuracy +=1
     return total_accuracy/num_samples
 
 # Instantiate and load network
@@ -26,7 +26,7 @@ multi_digit_net = multi_digit()
 state_dict = torch.load("./network/network_weights.pth")
 multi_digit_net.load_state_dict(state_dict)
 
-accuracy = test(network=multi_digit, test_dataloader=test_dataloader)
+accuracy = test(network=multi_digit_net, test_dataloader=test_dataloader)
 print(f"accuracy: {accuracy:.2f}")
 
 logging.info("") # Log the accuracy

@@ -32,7 +32,7 @@ def train(network, num_epochs, train_dataloader):
         for batch_index, (imgs, labels) in enumerate(train_dataloader):
             optimizer.zero_grad()
 
-            logits=network.forward(imgs)
+            logits=network(imgs)
 
             loss=loss_function(logits,labels)
 
