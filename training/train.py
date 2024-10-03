@@ -1,3 +1,4 @@
+import logging
 from datasets.dataloaders import (
     train_dataloader
 )
@@ -6,6 +7,10 @@ from network.network import multi_digit
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
+
+# Create logger to log training errors in specified directory
+logging.basicConfig(filemode="./training/logs/training_error.log", level=logging.INFO)
 
 # Instantiate network
 multi_digit_net = multi_digit()
