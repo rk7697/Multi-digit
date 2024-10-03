@@ -16,9 +16,10 @@ loss_function = nn.CrossEntropyLoss()
 # Instantiate optimizer
 optimizer = optim.Adam(multi_digit_net.parameters(),lr=.001)
 
+PRINT_INTERVAL = 10
+NUM_EPOCHS = 3
 error_log = []
 num_batches = len(train_dataloader)
-PRINT_INTERVAL = 10
 
 def train(network, num_epochs, train_dataloader):
     for epoch in range(num_epochs):
@@ -43,21 +44,23 @@ def train(network, num_epochs, train_dataloader):
                 epoch_progress = batch_index / (num_batches * num_epochs)
                 print(f"error: {avg_error:.5f} percent: {epoch_progress:.2f}")
 
-def plot_error(error_log):
-    log_interval = len(error_log)
+def plot_error(error_log, num_epochs):
+    num_samples = len(error_log)
 
-    plt.plot(x=log_interval, y=error_log)
+    log_intervals = [i * num_epochs/num_samples for i in range(num_samples)] #Calculate intervals based on num_samples and num_epochs
+    
+    plt.plot(log_intervals, error_log)
     plt.xlabel("Epoch")
     plt.ylabel("Error")
     plt.show()
 
 #Call train function
-train(network=multi_digit_net, num_epochs=3, train_dataloader=train_dataloader)
+train(network=multi_digit_net, num_epochs=NUM_EPOCHS, train_dataloader=train_dataloader)
 
 #Save network weights
 torch.save(multi_digit_net.state_dict(), "./network/network_weights.pth")
 
 #Call plot_error
-plot_error(error_log)
+plot_error(error_log=error_log, num_epochs=NUM_EPOCHS)
 
 
