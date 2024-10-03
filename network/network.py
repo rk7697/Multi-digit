@@ -1,75 +1,40 @@
-import torchvision.transforms as transforms
-from .dataloaders import (
-    train_dataloader,
-    test_dataloader
-)
-import matplotlib.pyplot as plt
-
-to_pil = transforms.ToPILImage()
-
-for imgs, labels in train_dataloader:
-    print(imgs.shape)
-    imgs=imgs[0]
-    img=to_pil(imgs)
-    plt.imshow(img, cmap='gray')
-    plt.show()
-
-    
-    exit()
-    print(imgs.shape)
-    exit()
-# class net(nn.Module):
-#     def __init__(self):
-#         super().__init__()
-#         self.activation=nn.ReLU()
-#     def forward(self,x):
-#             cnnsandmaxpoollayers=[layer for layer in list(self.children()) if (isinstance(layer,(nn.Conv2d)) or isinstance(layer,(nn.MaxPool2d)))]
-#             linearlayers=[layer for layer in list(self.children()) if (isinstance(layer,(nn.Linear)))]
-#             layerindex=0
-#             for layer in (cnnsandmaxpoollayers):
-#                 if(isinstance(layer,nn.Conv2d)):
-#                     layerindex+=1
-#                     x=layer(x)
-#                     x=self.activation(x)
-#             x=torch.flatten(x,start_dim=1)
-#             for layer in linearlayers:
-#                 layerindex+=1
-#                 x=layer(x)
-#                 self.recentoutputs.append(x)
-#                 if(layer != linearlayers[-1]):
-#                     x=self.activation(x)
-#             return x     
-###
-
-# optimizer=torch.optim.Adam
+import torch
+import torch.nn as nn
 
 
+class multi_digit(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.activation=nn.ReLU()
 
-# trainData=MNISTdata(rootdir,"train")
+        self.conv1 = nn.Conv2d(in_channels=1, out_channels=20, kernel_size=3)
+        self.conv2 = nn.Conv2d(in_channels=20, out_channels=30, kernel_size=3)
+        self.conv3 = nn.Conv2d(in_channels=30, out_channels=40, kernel_size=3)
 
-# torch.optim.Adam(net.parameters(),lr=.001,weight_decay=.0000001)
+        self.pool1 = nn.MaxPool2d(kernel_size=2)
+        self.pool2 = nn.MaxPool2d(kernel_size=2)
+        self.pool3 = nn.MaxPool2d(kernel_size=2)
 
-# def train(net,optimizer,epochs):
-#     lossfunc=nn.CrossEntropyLoss()
-#     errors=[]
-#     epochcount=[]
-#     for epoch in range(epochs):
-#         traindataloader=DataLoader(trainData,batch_size=32,shuffle=True)
-#         runningerror=0.0
-#         i=0
-#         for labels, imgs in traindataloader:
-#             optim.zero_grad()
-#             logits=net.forward(imgs)
-#             loss=lossfunc(logits,labels)
-#             loss.backward()
-#             optim.step()
-#             runningerror+=loss
-#             if(i>0 and i%(10)==0):
-#                 avgerror=runningerror/i
-#                 errors.append(avgerror)
-#                 percent=epoch+i/len(traindataloader)
-#                 epochcount.append(percent)
-#                 if(i%100==0):
-#                     print("error:{:<10} epoch:{:<2} percent:{:<7.2f}%".format(avgerror, epoch, percent))
-#             i+=1
-#     return epochcount,errors,  
+        self.linear1 = nn.Linear(4*4*40,50)
+        self.linear2 = nn.Linear(50,10)
+
+    def forward(self,x):
+            x = self.conv1(x)
+            x = self.activation(x)
+            x = self.pool1(x)
+            x = self.conv2(x)
+            x = self.activation(x)
+            x = self.pool2(x)
+            x = self.conv3(x)
+            x = self.activation(x)
+            x = self.pool3(x)
+
+            # Flatten tensor by
+            # reshaping to (batch_size , -1)
+            batch_size = x.shape[0]
+            x=x.reshape(batch_size,-1)
+
+            x=self.linear1(x)
+            x = self.activation(x)
+            x=self.linear2(x)
+            return x
