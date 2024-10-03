@@ -1,16 +1,10 @@
-import torch
-import torch.nn as nn
-import pandas as pd
-from torch.utils.data import DataLoader
-import os
-import matplotlib.pyplot as plt
-import numpy as np
-from torch.nn import init
-import os
-from .dataset import train_dataset
-dataloader=DataLoader(train_dataset,batch_size=1,shuffle=True)
-for labels, imgs in dataloader:
-    print(1)
+from .dataloaders import (
+    train_dataloader,
+    test_dataloader
+)
+
+for imgs, labels in train_dataloader:
+    print(imgs.shape)
     exit()
 # class net(nn.Module):
 #     def __init__(self):

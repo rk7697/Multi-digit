@@ -24,15 +24,16 @@ def pad_shift(image,new_size_width,new_size_height):
     half_image_height = image_height//2
     half_image_width = image_width//2
 
-    new_center_y = int(random.uniform(half_image_height, new_size_height - half_image_height))
-    new_center_x = int(random.uniform(half_image_width, new_size_width - half_image_width))
+    new_center_y = int(random.uniform(half_image_height, new_size_height + half_image_height))
+    new_center_x = int(random.uniform(half_image_width, new_size_width + half_image_width))
 
-    #Define padding (left, right, top bottom)
+    #Define padding (left, right, top, bottom)
     padding_left = new_center_x - half_image_width
     padding_right = new_size_width - (new_center_x + half_image_width)
     padding_bottom = new_center_y - half_image_height
     padding_top = new_size_height - (new_center_y + half_image_height)
-    image = pad(image, (padding_left, padding_right, padding_top, padding_bottom))
+    image = pad(image, (padding_left, padding_top, padding_right, padding_bottom))
+
     return image
 
 #Set new_size to be 500,500 for MNIST image
