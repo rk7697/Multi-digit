@@ -15,7 +15,7 @@ def canny_edge_detection(image):
 
     # Set threshold for weak and strong edges to 1
     threshold_1 = 1
-    threshold_2 = 1
+    threshold_2 = 10
     img_edges = Canny(img_array, threshold1=threshold_1, threshold2=threshold_2)
     return img_edges
 
