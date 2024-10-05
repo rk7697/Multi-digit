@@ -1,12 +1,13 @@
 import logging
-from datasets.dataloaders import (
-    train_dataloader
-)
 import matplotlib.pyplot as plt
-from network.network import multi_digit
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.optim as optim
+from network.network import multi_digit
+from datasets.dataloaders import (
+    train_dataloader
+)
 
 
 # Create logger to log training errors in specified directory
@@ -29,7 +30,8 @@ num_batches = len(train_dataloader)
 def train(network, num_epochs, train_dataloader):
     for epoch in range(num_epochs):
         error = 0.0
-        for batch_index, (imgs, labels) in enumerate(train_dataloader):
+        for batch_index, (imgs, bboxes, labels) in enumerate(train_dataloader):
+
             optimizer.zero_grad()
 
             logits=network(imgs)
