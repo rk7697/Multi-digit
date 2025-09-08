@@ -431,8 +431,6 @@ class multi_digit(nn.Module):
             # x_0 = self.conv_1x1_linear_level_3_1(x_0)
 
             # Number 5
-            # Downsampling and upsampling with residual to dimensions 28 x 28
-            # Level 0 downsample
             x_0 = x
             x_0 = self.conv_level_0_downsample_0(x_0)
             x_0 = self.activation(x_0)
