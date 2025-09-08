@@ -4,8 +4,6 @@ from .datasets import (
     test_dataset
 )
 
-
-train_dataloader = DataLoader(train_dataset, batch_size=20, shuffle=True)
-test_dataloader = DataLoader(test_dataset, batch_size=1, shuffle=False)
-
-
+BATCH_SIZE = 1
+train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
+test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)

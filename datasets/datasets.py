@@ -1,8 +1,8 @@
 import math
-from typing import Tuple
 import random
 import numpy as np
 import torch
+from typing import Tuple
 from torch.utils.data import Dataset
 from PIL import Image
 from torchvision import (
@@ -15,8 +15,8 @@ import torchvision.transforms as transforms
 # Set NEW_SIZE dimensions to be 100, 100 for MNIST image
 # These are the dimensions for the full image that the digits are placed into
 # For now, use small input size for use case
-NEW_SIZE_WIDTH = 112
-NEW_SIZE_HEIGHT = 112
+NEW_SIZE_HEIGHT = 224
+NEW_SIZE_WIDTH = 224
 
 def crop_blank_space(image):
     bbox = image.getbbox() # Get bounding box as (left, upper, right, lower) from PIL
@@ -32,12 +32,12 @@ def rotate_img(image):
 
 # Resize image to randomly selected height and width between MIN_DIMENSION and MAX_DIMENSION pixels
 def resize_img(image):
-    MIN_DIMENSION = 28
-    MAX_DIMENSION = 100 # Set MAX_DIMENSION to dimension very close to new_size dimensions for use case
+    MIN_DIMENSION = 50
+    MAX_DIMENSION = 224 # Set MAX_DIMENSION to dimension very close to new_size dimensions for use case
 
     # Resize image to random dimensions in the valid range
-    new_height = random.randint(MIN_DIMENSION, MAX_DIMENSION + 1) 
-    new_width = random.randint(MIN_DIMENSION, MAX_DIMENSION + 1)
+    new_height = random.randint(MIN_DIMENSION, MAX_DIMENSION) 
+    new_width = random.randint(MIN_DIMENSION, MAX_DIMENSION)
     resize_transform = transforms.Resize((new_height, new_width)) # Define resize transform for image
     return resize_transform(image)
 
@@ -58,12 +58,13 @@ def random_img_center(image_dimensions: Tuple[int,int], new_image_dimensions = (
 
 #  Compute resulting bbox for image from random resize and random center shift
 def compute_bbox(image):
-    image_height, image_width = image.shape[0], image.shape[1]
+    # Image is tensor of shape 1 x H x W
+    image_height, image_width = image.shape[1], image.shape[2]
     
     # Get new center for image and store it as center_x, center_y to later shift image in pad_shift_with_bbox
     new_center_x, new_center_y = random_img_center((image_height, image_width))
     
-    bbox = torch.tensor((new_center_x, new_center_y, image_width, image_height))
+    bbox = torch.tensor((new_center_x, new_center_y, image_height, image_width))
     return bbox
 
 # Define ImageWithBBox class to represent (img, bbox)
@@ -84,8 +85,9 @@ def add_bbox(image):
 # Pad image with specified new size 
 # and shift image center to a random location
 def pad_shift(image, new_center, new_size_width = NEW_SIZE_WIDTH, new_size_height = NEW_SIZE_HEIGHT):
-    image_height = image.shape[0]
-    image_width = image.shape[1]
+    # Image is tensor of shape 1 x H x W
+    image_height = image.shape[1]
+    image_width = image.shape[2]
 
     # Calculate halved image dimensions
     half_image_height = image_height/2
@@ -105,18 +107,24 @@ def pad_shift(image, new_center, new_size_width = NEW_SIZE_WIDTH, new_size_heigh
 
 # Pad image and shift center of image in image_with_bbox using bbox center
 def pad_shift_with_bbox(image_with_bbox: ImageWithBBox):
+    # Image bbox is tensor of shape (center_x, center_y, H, W)
     new_center = (image_with_bbox.bbox[0], image_with_bbox.bbox[1])
 
     image_with_bbox.image = pad_shift(image_with_bbox.image, new_center)
     return image_with_bbox
 
+
+# This transform is going to be moved and the transforms will be moved into the get item
+# This is because this transform is supposed to be just for the image, but the transform
+# Has to add a bbox in order to construct the image
+#T his is simpler done and further transforms are simpler done in get item
 transform = transforms.Compose([
     crop_blank_space,
     transforms.ToTensor(), # Convert PIL to 1 x H x W tensor
     rotate_img, # Rotate image by a random angle in the specified range
     resize_img, # Resize image to random dimensions in the specified range
+    # transforms.Resize((50,50)),
     transforms.Normalize(mean=0, std=1), # Normalize image tensor
-    transforms.Lambda(lambda image: image.squeeze(0)), # Convert tensor shape 1 x H x W to H x W
     add_bbox, #Transform image to class representing (image, bbox) where bbox center is randomly selected from the valid range and bbox height, width are the image dimensions
     pad_shift_with_bbox,  # Shift center of image to random location (specified in bbox) in the specified new image dimensions (global constants)
     transforms.Lambda(lambda image_with_bbox: (image_with_bbox.image, image_with_bbox.bbox)) #Return tuple (image, bbox)
@@ -132,6 +140,10 @@ class AugmentedMNISTWithBBoxes(Dataset):
     
     def __getitem__(self, idx):
         ((image,bbox), target) = self.mnist_dataset[idx]
+
+        # print(target)
+        # transforms.ToPILImage()(image).show()
+        # exit()
         return (image, bbox, target)
     
 train_dataset = AugmentedMNISTWithBBoxes(train=True, transform=transform)
