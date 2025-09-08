@@ -15,8 +15,8 @@ import torchvision.transforms as transforms
 # Set NEW_SIZE dimensions to be 100, 100 for MNIST image
 # These are the dimensions for the full image that the digits are placed into
 # For now, use small input size for use case
-NEW_SIZE_HEIGHT = 224
-NEW_SIZE_WIDTH = 224
+NEW_SIZE_HEIGHT = 256
+NEW_SIZE_WIDTH = 256
 
 def crop_blank_space(image):
     bbox = image.getbbox() # Get bounding box as (left, upper, right, lower) from PIL

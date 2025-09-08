@@ -135,9 +135,56 @@ class multi_digit(nn.Module):
         # self.conv_level_5_downsample_1 = nn.Conv2d(in_channels=1024, out_channels=1024, kernel_size=3, padding=1)
         # self.level_5_upsample = nn.Upsample(scale_factor=2, mode='nearest')
 
-        # Number 4 (This is 12.826 billion flops).
+        # # Number 4 (This is 12.826 billion flops).
+        # # Downsampling and upsampling with 1 in-between CNN layer for relevant height layers,
+        # # and with residual to dimensions 28 x 28
+        # # Downsampling
+        # self.conv_level_0_downsample_0 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=1)
+        # self.conv_level_0_downsample_1 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, padding=1)
+        # self.pool_level_0 = nn.MaxPool2d(kernel_size=2)
+
+        # self.conv_level_1_downsample_0 = nn.Conv2d(in_channels=16, out_channels=32, kernel_size=3, padding=1)
+        # self.conv_level_1_downsample_1 = nn.Conv2d(in_channels=32, out_channels=32, kernel_size=3, padding=1)
+        # self.pool_level_1 = nn.MaxPool2d(kernel_size=2)
+
+        # self.conv_level_2_downsample_0 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=3, padding=1)
+        # self.conv_level_2_downsample_1 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1)
+        # self.pool_level_2 = nn.MaxPool2d(kernel_size=2)
+
+        # # 28 x 28
+        # # Downsampling
+        # self.conv_level_3_downsample_0 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1)
+        # self.conv_level_3_downsample_1 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1)
+        # self.pool_level_3 = nn.MaxPool2d(kernel_size=2)
+        # # Across
+        # self.conv_level_3_across_0 = nn.Conv2d(in_channels=128, out_channels=512, kernel_size=3, padding=1)
+        # # Upsampling
+        # self.conv_level_3_upsample_0 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
+        # self.conv_level_3_upsample_1 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
+        # # 1 x 1 Linear Convolutions
+        # self.conv_1x1_linear_level_3_0 = nn.Conv2d(in_channels=512, out_channels=256, kernel_size=1, padding=0)
+        # self.conv_1x1_linear_level_3_1 = nn.Conv2d(in_channels=256, out_channels=12, kernel_size=1, padding=0)
+        
+        # # 14 x 14
+        # # Downsampling
+        # self.conv_level_4_downsample_0 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1)
+        # self.conv_level_4_downsample_1 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1)
+        # self.pool_level_4 = nn.MaxPool2d(kernel_size=2)
+        # # Across
+        # self.conv_level_4_across_0 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1)
+        # # Upsampling
+        # self.conv_level_4_upsample_0 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
+        # self.conv_level_4_upsample_1 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
+        # self.level_4_upsample = nn.Upsample(scale_factor=2, mode='nearest')
+        # # 7 x 7
+        # # Downsampling
+        # self.conv_level_5_downsample_0 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1)
+        # self.conv_level_5_downsample_1 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
+        # self.level_5_upsample = nn.Upsample(scale_factor=2, mode='nearest')
+
+        # Number 5 (This is 17.809 billion flops).
         # Downsampling and upsampling with 1 in-between CNN layer for relevant height layers,
-        # and with residual to dimensions 28 x 28
+        # and with residual to dimensions 32 x 32
         # Downsampling
         self.conv_level_0_downsample_0 = nn.Conv2d(in_channels=1, out_channels=16, kernel_size=3, padding=1)
         self.conv_level_0_downsample_1 = nn.Conv2d(in_channels=16, out_channels=16, kernel_size=3, padding=1)
@@ -151,7 +198,7 @@ class multi_digit(nn.Module):
         self.conv_level_2_downsample_1 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, padding=1)
         self.pool_level_2 = nn.MaxPool2d(kernel_size=2)
 
-        # 28 x 28
+        # 32 x 32
         # Downsampling
         self.conv_level_3_downsample_0 = nn.Conv2d(in_channels=64, out_channels=128, kernel_size=3, padding=1)
         self.conv_level_3_downsample_1 = nn.Conv2d(in_channels=128, out_channels=128, kernel_size=3, padding=1)
@@ -165,7 +212,7 @@ class multi_digit(nn.Module):
         self.conv_1x1_linear_level_3_0 = nn.Conv2d(in_channels=512, out_channels=256, kernel_size=1, padding=0)
         self.conv_1x1_linear_level_3_1 = nn.Conv2d(in_channels=256, out_channels=12, kernel_size=1, padding=0)
         
-        # 14 x 14
+        # 16 x 16
         # Downsampling
         self.conv_level_4_downsample_0 = nn.Conv2d(in_channels=128, out_channels=256, kernel_size=3, padding=1)
         self.conv_level_4_downsample_1 = nn.Conv2d(in_channels=256, out_channels=256, kernel_size=3, padding=1)
@@ -176,16 +223,25 @@ class multi_digit(nn.Module):
         self.conv_level_4_upsample_0 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
         self.conv_level_4_upsample_1 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
         self.level_4_upsample = nn.Upsample(scale_factor=2, mode='nearest')
-        # 7 x 7
+        
+        # 8 x 8
         # Downsampling
         self.conv_level_5_downsample_0 = nn.Conv2d(in_channels=256, out_channels=512, kernel_size=3, padding=1)
         self.conv_level_5_downsample_1 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
+        self.pool_level_5 = nn.MaxPool2d(kernel_size=2)
+        # Across
+        self.conv_level_5_across_0 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
+        # Upsampling
+        self.conv_level_5_upsample_0 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
+        self.conv_level_5_upsample_1 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
         self.level_5_upsample = nn.Upsample(scale_factor=2, mode='nearest')
 
-        
-
-        
-
+        # 4 x 4
+        # Downsampling
+        self.conv_level_6_downsample_0 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
+        self.conv_level_6_downsample_1 = nn.Conv2d(in_channels=512, out_channels=512, kernel_size=3, padding=1)
+        # Upsampling
+        self.level_6_upsample = nn.Upsample(scale_factor=2, mode='nearest')
 
     def forward(self,x):
             # Number 1
@@ -308,6 +364,75 @@ class multi_digit(nn.Module):
             # Number 3
             # Downsampling and upsampling with residual to dimensions 28 x 28
             # Level 0 downsample
+            # x_0 = x
+            # x_0 = self.conv_level_0_downsample_0(x_0)
+            # x_0 = self.activation(x_0)
+            # x_0 = self.conv_level_0_downsample_1(x_0)
+            # x_0 = self.activation(x_0)
+            # x_0 = self.pool_level_0(x_0)
+            # # Level 1 downsample
+            # x_0 = self.conv_level_1_downsample_0(x_0)
+            # x_0 = self.activation(x_0)
+            # x_0 = self.conv_level_1_downsample_1(x_0)
+            # x_0 = self.activation(x_0)
+            # x_0 = self.pool_level_1(x_0)
+            # # Level 2 downsample
+            # x_0 = self.conv_level_2_downsample_0(x_0)
+            # x_0 = self.activation(x_0)
+            # x_0 = self.conv_level_2_downsample_1(x_0)
+            # x_0 = self.activation(x_0)
+            # x_0 = self.pool_level_2(x_0)
+            # # Level 3 downsample
+            # x_0 = self.conv_level_3_downsample_0(x_0)
+            # x_0 = self.activation(x_0)
+            # x_0 = self.conv_level_3_downsample_1(x_0)
+            # x_0 = self.activation(x_0)
+
+            # x_2 = x_0
+
+            # x_0 = self.pool_level_3(x_0)
+            # # Level 4 downsample
+            # x_0 = self.conv_level_4_downsample_0(x_0)
+            # x_0 = self.activation(x_0)
+            # x_0 = self.conv_level_4_downsample_1(x_0)
+            # x_0 = self.activation(x_0)
+
+            # x_1 = x_0
+
+            # x_0 = self.pool_level_4(x_0)
+            # # Level 5 downsample
+            # x_0 = self.conv_level_5_downsample_0(x_0)
+            # x_0 = self.activation(x_0)
+            # x_0 = self.conv_level_5_downsample_1(x_0)
+            # x_0 = self.activation(x_0)
+            # # Level 4 across
+            # x_1 = self.conv_level_4_across_0(x_1)
+            # x_1 = self.activation(x_1)
+            # # Level 4 upsample and sum
+            # x_0 = self.level_5_upsample(x_0)
+            # x_0 = x_0 + x_1
+            # x_0 = self.conv_level_4_upsample_0(x_0)
+            # x_0 = self.activation(x_0)
+            # x_0 = self.conv_level_4_upsample_1(x_0)
+            # x_0 = self.activation(x_0)
+            # #Level 3 across
+            # x_2 = self.conv_level_3_across_0(x_2)
+            # x_2 = self.activation(x_2)
+            # # Level 3 upsample and sum
+            # x_0 = self.level_4_upsample(x_0)
+            # x_0 = x_0 + x_2
+            # x_0 = self.conv_level_3_upsample_0(x_0)
+            # x_0 = self.activation(x_0)
+            # x_0 = self.conv_level_3_upsample_1(x_0)
+            # x_0 = self.activation(x_0)
+            # # Level 3 1x1 linear convolutions
+            # x_0 = self.conv_1x1_linear_level_3_0(x_0)
+            # x_0 = self.activation(x_0)
+            # x_0 = self.conv_1x1_linear_level_3_1(x_0)
+
+            # Number 5
+            # Downsampling and upsampling with residual to dimensions 28 x 28
+            # Level 0 downsample
             x_0 = x
             x_0 = self.conv_level_0_downsample_0(x_0)
             x_0 = self.activation(x_0)
@@ -332,7 +457,7 @@ class multi_digit(nn.Module):
             x_0 = self.conv_level_3_downsample_1(x_0)
             x_0 = self.activation(x_0)
 
-            x_2 = x_0
+            x_3 = x_0
 
             x_0 = self.pool_level_3(x_0)
             # Level 4 downsample
@@ -341,7 +466,7 @@ class multi_digit(nn.Module):
             x_0 = self.conv_level_4_downsample_1(x_0)
             x_0 = self.activation(x_0)
 
-            x_1 = x_0
+            x_2 = x_0
 
             x_0 = self.pool_level_4(x_0)
             # Level 5 downsample
@@ -349,22 +474,41 @@ class multi_digit(nn.Module):
             x_0 = self.activation(x_0)
             x_0 = self.conv_level_5_downsample_1(x_0)
             x_0 = self.activation(x_0)
-            # Level 4 across
-            x_1 = self.conv_level_4_across_0(x_1)
+
+            x_1 = x_0
+
+            x_0 = self.pool_level_5(x_0)
+            # Level 6 downsample
+            x_0 = self.conv_level_6_downsample_0(x_0)
+            x_0 = self.activation(x_0)
+            x_0 = self.conv_level_6_downsample_1(x_0)
+            x_0 = self.activation(x_0)
+            # Level 5 across
+            x_1 = self.conv_level_5_across_0(x_1)
             x_1 = self.activation(x_1)
+            # Level 5 upsample and sum
+            x_0 = self.level_6_upsample(x_0)
+            x_0 = x_0 + x_1
+            x_0 = self.conv_level_5_upsample_0(x_0)
+            x_0 = self.activation(x_0)
+            x_0 = self.conv_level_5_upsample_1(x_0)
+            x_0 = self.activation(x_0)
+            # Level 4 across
+            x_2 = self.conv_level_4_across_0(x_2)
+            x_2 = self.activation(x_2)
             # Level 4 upsample and sum
             x_0 = self.level_5_upsample(x_0)
-            x_0 = x_0 + x_1
+            x_0 = x_0 + x_2
             x_0 = self.conv_level_4_upsample_0(x_0)
             x_0 = self.activation(x_0)
             x_0 = self.conv_level_4_upsample_1(x_0)
             x_0 = self.activation(x_0)
             #Level 3 across
-            x_2 = self.conv_level_3_across_0(x_2)
-            x_2 = self.activation(x_2)
+            x_3 = self.conv_level_3_across_0(x_3)
+            x_3 = self.activation(x_3)
             # Level 3 upsample and sum
             x_0 = self.level_4_upsample(x_0)
-            x_0 = x_0 + x_2
+            x_0 = x_0 + x_3
             x_0 = self.conv_level_3_upsample_0(x_0)
             x_0 = self.activation(x_0)
             x_0 = self.conv_level_3_upsample_1(x_0)

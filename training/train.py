@@ -74,9 +74,9 @@ def train(network, num_epochs, train_dataloader):
             grid_cell_coordinates = compute_grid_cell_coordinates(image_centers_x, image_centers_y)
 
             optimizer.zero_grad()
-            
+                
             logits=network(imgs)
-            
+
             bboxs_and_predictions_logits = get_bboxs_and_predictions_logits(logits, grid_cell_coordinates)
             
             loss = loss_from_bbox_and_class_predictions(bboxs_and_predictions_logits, bboxes, grid_cell_coordinates, labels)
