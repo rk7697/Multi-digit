@@ -74,8 +74,12 @@ def train(network, num_epochs, train_dataloader):
             grid_cell_coordinates = compute_grid_cell_coordinates(image_centers_x, image_centers_y)
 
             optimizer.zero_grad()
-                
-            logits=network(imgs)
+            
+            with FlopCounterMode(network) as fcm:
+                logits=network(imgs)
+            
+            print(fcm.get_total_flops)
+            exit()
 
             bboxs_and_predictions_logits = get_bboxs_and_predictions_logits(logits, grid_cell_coordinates)
             
