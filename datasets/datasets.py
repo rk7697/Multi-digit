@@ -1,22 +1,28 @@
 import math
 import random
-import numpy as np
 import torch
 from typing import Tuple
 from torch.utils.data import Dataset
-from PIL import Image
 from torchvision import (
     datasets,
     transforms
 )
 from torchvision.transforms.functional import pad
+from network.network import GRID_SIZE
 import torchvision.transforms as transforms
 
-# Set NEW_SIZE dimensions to be 100, 100 for MNIST image
+# Set NEW_SIZE dimensions to be 256, 256 for MNIST image
 # These are the dimensions for the full image that the digits are placed into
 # For now, use small input size for use case
 NEW_SIZE_HEIGHT = 256
 NEW_SIZE_WIDTH = 256
+
+GRID_INTERVAL_Y_SIZE = NEW_SIZE_HEIGHT/GRID_SIZE
+GRID_INTERVAL_X_SIZE = NEW_SIZE_WIDTH/GRID_SIZE
+
+# An empty class is added to the set of
+# possible classes for a grid cell
+EMPTY_CLASS_INDEX = 10
 
 def crop_blank_space(image):
     bbox = image.getbbox() # Get bounding box as (left, upper, right, lower) from PIL
@@ -117,7 +123,7 @@ def pad_shift_with_bbox(image_with_bbox: ImageWithBBox):
 # This transform is going to be moved and the transforms will be moved into the get item
 # This is because this transform is supposed to be just for the image, but the transform
 # Has to add a bbox in order to construct the image
-#T his is simpler done and further transforms are simpler done in get item
+# This is simpler done and further transforms are simpler done in get item
 transform = transforms.Compose([
     crop_blank_space,
     transforms.ToTensor(), # Convert PIL to 1 x H x W tensor
@@ -130,21 +136,44 @@ transform = transforms.Compose([
     transforms.Lambda(lambda image_with_bbox: (image_with_bbox.image, image_with_bbox.bbox)) #Return tuple (image, bbox)
 ])
 
+# Compute grid cell coordinates of image from the image's center
+def compute_grid_cell_coordinates(image_center_x : torch.Tensor, image_center_y : torch.Tensor):
+    # Tensor batches have dimension B x C x H x W, so indices will correspond to H x W
+    grid_cell_coordinates_y = (image_center_y//GRID_INTERVAL_Y_SIZE).to(torch.int)
+    grid_cell_coordinates_x = (image_center_x//GRID_INTERVAL_X_SIZE).to(torch.int)
+    
+    grid_cell_coordinates = torch.tensor([grid_cell_coordinates_y, grid_cell_coordinates_x])
+    return grid_cell_coordinates
+
+# Compute target as grid of class indices
+# where the class index of the cell that
+# contains the image's center is the
+# image's class, and the class index of 
+# every other cell is the empty class
+def compute_target_grid(image_center_grid_cell_coordinates, target):
+    grid_of_repeated_targets = torch.full((GRID_SIZE, GRID_SIZE), EMPTY_CLASS_INDEX)
+    grid_of_repeated_targets[image_center_grid_cell_coordinates] = target
+
+    target_grid = grid_of_repeated_targets
+    return target_grid
+
 # Define augmented MNIST dataset with bboxes to return (image, bbox, target)
 class AugmentedMNISTWithBBoxes(Dataset):
     def __init__(self, train=True, transform=None):
-        self.mnist_dataset = datasets.MNIST("./dataset",train=train, download=False,transform=transform)
+        self.mnist_dataset = datasets.MNIST("./dataset",train=train, download=False,transform=transform)        
 
     def __len__(self):
+        return 10_000
         return len(self.mnist_dataset)
     
     def __getitem__(self, idx):
         ((image,bbox), target) = self.mnist_dataset[idx]
+        
+        image_center_x, image_center_y = bbox[0], bbox[1]
+        image_center_grid_cell_coordinates = compute_grid_cell_coordinates(image_center_x, image_center_y)
 
-        # print(target)
-        # transforms.ToPILImage()(image).show()
-        # exit()
-        return (image, bbox, target)
+        # target_grid = compute_target_grid(image_center_grid_cell_coordinates, target)
+        return (image, bbox, image_center_grid_cell_coordinates, target)
     
 train_dataset = AugmentedMNISTWithBBoxes(train=True, transform=transform)
 test_dataset = AugmentedMNISTWithBBoxes(train=False, transform=transform)

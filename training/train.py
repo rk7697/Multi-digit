@@ -1,6 +1,7 @@
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
+import time
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -10,11 +11,10 @@ from datasets.dataloaders import (
 )
 from datasets.datasets import NEW_SIZE_HEIGHT, NEW_SIZE_WIDTH
 from datasets.dataloaders import BATCH_SIZE
-from network.network import GRID_SIZE
 from network.network import multi_digit
 from torch.utils.flop_counter import FlopCounterMode
 
-PRINT_INTERVAL = 30
+PRINT_INTERVAL = 2
 NUM_EPOCHS = 1
 num_batches = len(train_dataloader)
 
@@ -32,24 +32,16 @@ def get_max_indices_height_width_of_bboxs_and_predictions_logits(logits):
 
     return (max_indices_logits_classes_height, max_indices_logits_classes_width)
 
-# Compute grid cell coordinates of images from the images' centers
-def compute_grid_cell_coordinates(image_centers_x : torch.Tensor, image_centers_y : torch.Tensor):
-    # Tensor batches have dimension B x C x H x W, so indices will correspond to H x W
-    grid_cell_coordinates_y = (image_centers_y//(NEW_SIZE_HEIGHT/GRID_SIZE)).to(torch.int)
-    grid_cell_coordinates_x = (image_centers_x//(NEW_SIZE_WIDTH/GRID_SIZE)).to(torch.int)
-    
-    grid_cell_coordinates = torch.stack([grid_cell_coordinates_y, grid_cell_coordinates_x], dim=1)
-    return grid_cell_coordinates
-
-def get_bboxs_and_predictions_logits(logits, grid_cell_coordinates):
+def get_bboxs_and_predictions_logits_for_image_center_grid_cell(logits, grid_cell_coordinates):
     # max_indices_logits_classes_height, max_indices_logits_classes_width = get_indices_height_width_of_bboxs_and_predictions_logits(logits)
     indices_logits_height, indices_logits_width = grid_cell_coordinates[:, 0], grid_cell_coordinates[:, 1]
-    indices_batches = torch.arange(BATCH_SIZE)
+    logits_batch_size = logits.shape[0]
+    indices_batches = torch.arange(logits_batch_size)
 
     bboxs_and_predictions = logits[indices_batches, :, indices_logits_height, indices_logits_width]
     return bboxs_and_predictions
 
-def loss_from_bbox_and_class_predictions(bboxs_and_predictions_logits, bboxes, grid_cell_coordinates, labels):
+def loss_from_bbox_and_class_predictions_for_image_center_grid_cell(bboxs_and_predictions_logits, bboxes, grid_cell_coordinates, targets):
     logits_image_relative_widths =  bboxs_and_predictions_logits[:, 0]
     logits_image_relative_heights =  bboxs_and_predictions_logits[:, 1]
     logits_classes = bboxs_and_predictions_logits[:, 2:]
@@ -61,30 +53,53 @@ def loss_from_bbox_and_class_predictions(bboxs_and_predictions_logits, bboxes, g
 
     loss = loss_binary_cross_entropy(logits_image_relative_widths, image_relative_widths) 
     loss += loss_binary_cross_entropy(logits_image_relative_heights, image_relative_heights) 
-    loss += loss_categorical_cross_entropy(logits_classes, labels)
+    loss += loss_categorical_cross_entropy(logits_classes, targets)
+    return loss
+
+def loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bboxes, image_center_grid_cell_coordinates, target_grids):
+    # Get the relative width and height predictions of the image center grid cell    
+    image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x = image_center_grid_cell_coordinates[:, 0], image_center_grid_cell_coordinates[:, 1]
+    
+    logits_batch_size = bboxs_and_predictions_logits.shape[0]
+    indices_batches = torch.arange(logits_batch_size)
+
+    logits_image_relative_widths =  bboxs_and_predictions_logits[indices_batches, 0, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
+    logits_image_relative_heights =  bboxs_and_predictions_logits[indices_batches, 1, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
+
+    # Get relative heights and widths of images
+    # Image bbox is tensor of shape (center_x, center_y, H, W)
+    image_heights, image_widths = bboxes[:,2], bboxes[:,3]
+    image_relative_heights, image_relative_widths = image_heights / NEW_SIZE_HEIGHT, image_widths / NEW_SIZE_WIDTH
+
+    # Get grid of class logits
+    logits_classes = bboxs_and_predictions_logits[:, 2:, :, :]
+
+    # Compute losses
+    loss = loss_binary_cross_entropy(logits_image_relative_widths, image_relative_widths) 
+    loss += loss_binary_cross_entropy(logits_image_relative_heights, image_relative_heights) 
+    loss += loss_categorical_cross_entropy(logits_classes, target_grids)
     return loss
 
 def train(network, num_epochs, train_dataloader):
     for epoch in range(num_epochs):
         error = 0.0
-        for batch_index, (imgs, bboxes, labels) in enumerate(train_dataloader):                        
-            imgs, bboxes, labels = imgs.to(device), bboxes.to(device), labels.to(device)
-
-            image_centers_x, image_centers_y = bboxes[:, 0], bboxes[:, 0]
-            grid_cell_coordinates = compute_grid_cell_coordinates(image_centers_x, image_centers_y)
+        for batch_index, (imgs, bboxes, image_centers_grid_cell_coordinates, targets) in enumerate(train_dataloader):                        
+            imgs, bboxes, image_centers_grid_cell_coordinates, targets = imgs.to(device), bboxes.to(device), image_centers_grid_cell_coordinates.to(device), targets.to(device)
 
             optimizer.zero_grad()
             
-            with FlopCounterMode(network) as fcm:
-                logits=network(imgs)
+            # with FlopCounterMode(network) as fcm:
+            logits=network(imgs)
             
-            print(fcm.get_total_flops)
-            exit()
+            # print(fcm.get_total_flops)
+            # exit()
 
-            bboxs_and_predictions_logits = get_bboxs_and_predictions_logits(logits, grid_cell_coordinates)
+            bboxs_and_predictions_logits = get_bboxs_and_predictions_logits_for_image_center_grid_cell(logits, image_centers_grid_cell_coordinates)
+            # bboxs_and_predictions_logits = logits
             
-            loss = loss_from_bbox_and_class_predictions(bboxs_and_predictions_logits, bboxes, grid_cell_coordinates, labels)
-            
+            loss = loss_from_bbox_and_class_predictions_for_image_center_grid_cell(bboxs_and_predictions_logits, bboxes, image_centers_grid_cell_coordinates, targets)
+            # loss = loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bboxes, image_centers_grid_cell_coordinates, target_grids)
+            # exit()
             loss.backward()
 
             optimizer.step()
@@ -92,6 +107,10 @@ def train(network, num_epochs, train_dataloader):
             error+=loss.item()
 
             if((batch_index +1) % PRINT_INTERVAL == 0):
+                # Temporary
+                if((batch_index+1) % (PRINT_INTERVAL * 7) == 0):
+                    time.sleep(20)
+
                 avg_error = error / batch_index
                 error_log.append(avg_error)
 
@@ -118,14 +137,11 @@ multi_digit_net = multi_digit()
 multi_digit_net = multi_digit_net.to(device)
 
 #Temporary
-# Instantiate and load network
-# multi_digit_net = multi_digit()
-# multi_digit_net = multi_digit_net.to(device)
 # state_dict = torch.load("./network/network_weights.pth")
 # multi_digit_net.load_state_dict(state_dict)
 
 # Instantiate optimizer
-optimizer = optim.Adam(multi_digit_net.parameters(),lr=.00001)
+optimizer = optim.Adam(multi_digit_net.parameters(),lr=.000005)
 
 error_log = []
 
@@ -133,7 +149,11 @@ error_log = []
 train(network=multi_digit_net, num_epochs=NUM_EPOCHS, train_dataloader=train_dataloader)
 
 #Save network weights
-torch.save(multi_digit_net.state_dict(), "./network/network_weights_new_arch.pth")
+torch.save(multi_digit_net.state_dict(), "./network/network_weights/network_weights_arch_1_train_1.pth")
+
+# Save error log
+error_log_np = np.array(error_log)
+np.save("./training/logs/train_error_1.npy", error_log_np)
 
 #Call plot_error
-plot_error(error_log=error_log, num_epochs=NUM_EPOCHS)
+# plot_error(error_log=error_log, num_epochs=NUM_EPOCHS)
