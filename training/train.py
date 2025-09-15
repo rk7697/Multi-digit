@@ -10,11 +10,10 @@ from datasets.dataloaders import (
     train_dataloader
 )
 from datasets.datasets import NEW_SIZE_HEIGHT, NEW_SIZE_WIDTH
-from datasets.dataloaders import BATCH_SIZE
-from network.network import multi_digit
+from network.network import multi_digit, GRID_SIZE
 from torch.utils.flop_counter import FlopCounterMode
 
-PRINT_INTERVAL = 2
+PRINT_INTERVAL = 3
 NUM_EPOCHS = 1
 num_batches = len(train_dataloader)
 
@@ -51,8 +50,9 @@ def loss_from_bbox_and_class_predictions_for_image_center_grid_cell(bboxs_and_pr
     image_heights, image_widths = bboxes[:,2], bboxes[:,3]
     image_relative_heights, image_relative_widths = image_heights / NEW_SIZE_HEIGHT, image_widths / NEW_SIZE_WIDTH
 
-    loss = loss_binary_cross_entropy(logits_image_relative_widths, image_relative_widths) 
-    loss += loss_binary_cross_entropy(logits_image_relative_heights, image_relative_heights) 
+    loss = 0.0
+    # loss = loss_binary_cross_entropy(logits_image_relative_widths, image_relative_widths) 
+    # loss += loss_binary_cross_entropy(logits_image_relative_heights, image_relative_heights) 
     loss += loss_categorical_cross_entropy(logits_classes, targets)
     return loss
 
@@ -76,8 +76,17 @@ def loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bbo
 
     # Compute losses
     loss = loss_binary_cross_entropy(logits_image_relative_widths, image_relative_widths) 
-    loss += loss_binary_cross_entropy(logits_image_relative_heights, image_relative_heights) 
-    loss += loss_categorical_cross_entropy(logits_classes, target_grids)
+    loss += loss_binary_cross_entropy(logits_image_relative_heights, image_relative_heights)
+
+    regularizaton_constant = 1/(GRID_SIZE**2 - 1)
+    loss += 0.01 * regularizaton_constant * loss_categorical_cross_entropy(logits_classes, target_grids)
+
+    calculated_constant = (.99 - .01 * regularizaton_constant)
+    logits_classes_at_image_centers = logits_classes[indices_batches, :, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
+    targets_at_image_center = target_grids[indices_batches, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
+    loss += calculated_constant * loss_categorical_cross_entropy(logits_classes_at_image_centers, targets_at_image_center)
+
+    # loss += loss_categorical_cross_entropy(logits_classes, target_grids)
     return loss
 
 def train(network, num_epochs, train_dataloader):
@@ -108,8 +117,8 @@ def train(network, num_epochs, train_dataloader):
 
             if((batch_index +1) % PRINT_INTERVAL == 0):
                 # Temporary
-                if((batch_index+1) % (PRINT_INTERVAL * 7) == 0):
-                    time.sleep(20)
+                if((batch_index+1) % (PRINT_INTERVAL * 20) == 0):
+                    time.sleep(10)
 
                 avg_error = error / batch_index
                 error_log.append(avg_error)
@@ -141,7 +150,7 @@ multi_digit_net = multi_digit_net.to(device)
 # multi_digit_net.load_state_dict(state_dict)
 
 # Instantiate optimizer
-optimizer = optim.Adam(multi_digit_net.parameters(),lr=.000005)
+optimizer = optim.SGD(multi_digit_net.parameters(),lr=.1)
 
 error_log = []
 
@@ -149,7 +158,7 @@ error_log = []
 train(network=multi_digit_net, num_epochs=NUM_EPOCHS, train_dataloader=train_dataloader)
 
 #Save network weights
-torch.save(multi_digit_net.state_dict(), "./network/network_weights/network_weights_arch_1_train_1.pth")
+torch.save(multi_digit_net.state_dict(), "./network/network_weights/network_weights_arch_1_train_0.pth")
 
 # Save error log
 error_log_np = np.array(error_log)

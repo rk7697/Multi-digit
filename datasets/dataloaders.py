@@ -4,6 +4,7 @@ from .datasets import (
     test_dataset
 )
 
-BATCH_SIZE = 64
-train_dataloader = DataLoader(train_dataset, batch_size=BATCH_SIZE, shuffle=True)
-test_dataloader = DataLoader(test_dataset, batch_size=BATCH_SIZE, shuffle=False)
+TRAIN_BATCH_SIZE = 64
+TEST_BATCH_SIZE = 64
+train_dataloader = DataLoader(train_dataset, batch_size=TRAIN_BATCH_SIZE, shuffle=True)
+test_dataloader = DataLoader(test_dataset, batch_size=TEST_BATCH_SIZE, shuffle=True)

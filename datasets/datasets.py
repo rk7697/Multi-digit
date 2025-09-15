@@ -130,7 +130,7 @@ transform = transforms.Compose([
     rotate_img, # Rotate image by a random angle in the specified range
     resize_img, # Resize image to random dimensions in the specified range
     # transforms.Resize((50,50)),
-    transforms.Normalize(mean=0, std=1), # Normalize image tensor
+    transforms.Normalize(mean=0.1307, std=.3081), # Normalize image tensor
     add_bbox, #Transform image to class representing (image, bbox) where bbox center is randomly selected from the valid range and bbox height, width are the image dimensions
     pad_shift_with_bbox,  # Shift center of image to random location (specified in bbox) in the specified new image dimensions (global constants)
     transforms.Lambda(lambda image_with_bbox: (image_with_bbox.image, image_with_bbox.bbox)) #Return tuple (image, bbox)
@@ -163,7 +163,6 @@ class AugmentedMNISTWithBBoxes(Dataset):
         self.mnist_dataset = datasets.MNIST("./dataset",train=train, download=False,transform=transform)        
 
     def __len__(self):
-        return 10_000
         return len(self.mnist_dataset)
     
     def __getitem__(self, idx):
@@ -172,7 +171,7 @@ class AugmentedMNISTWithBBoxes(Dataset):
         image_center_x, image_center_y = bbox[0], bbox[1]
         image_center_grid_cell_coordinates = compute_grid_cell_coordinates(image_center_x, image_center_y)
 
-        # target_grid = compute_target_grid(image_center_grid_cell_coordinates, target)
+        target_grid = compute_target_grid(image_center_grid_cell_coordinates, target)
         return (image, bbox, image_center_grid_cell_coordinates, target)
     
 train_dataset = AugmentedMNISTWithBBoxes(train=True, transform=transform)
