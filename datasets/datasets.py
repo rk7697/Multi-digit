@@ -14,8 +14,8 @@ import torchvision.transforms as transforms
 # Set NEW_SIZE dimensions to be 256, 256 for MNIST image
 # These are the dimensions for the full image that the digits are placed into
 # For now, use small input size for use case
-NEW_SIZE_HEIGHT = 256
-NEW_SIZE_WIDTH = 256
+NEW_SIZE_HEIGHT = 64
+NEW_SIZE_WIDTH = 64
 
 GRID_INTERVAL_Y_SIZE = NEW_SIZE_HEIGHT/GRID_SIZE
 GRID_INTERVAL_X_SIZE = NEW_SIZE_WIDTH/GRID_SIZE
@@ -38,8 +38,9 @@ def rotate_img(image):
 
 # Resize image to randomly selected height and width between MIN_DIMENSION and MAX_DIMENSION pixels
 def resize_img(image):
-    MIN_DIMENSION = 50
-    MAX_DIMENSION = 224 # Set MAX_DIMENSION to dimension very close to new_size dimensions for use case
+    # Here it is assumed that NEW_SIZE_HEIGHT is equal to NEW_SIZE_WIDTH
+    MIN_DIMENSION = NEW_SIZE_HEIGHT // (GRID_SIZE * 3)  #Set MIN_DIMENSON to 1/3 of the dimensions of a grid cell
+    MAX_DIMENSION = 64 # Set MAX_DIMENSION to dimension very close to new_size dimensions for use case
 
     # Resize image to random dimensions in the valid range
     new_height = random.randint(MIN_DIMENSION, MAX_DIMENSION) 
@@ -119,7 +120,6 @@ def pad_shift_with_bbox(image_with_bbox: ImageWithBBox):
     image_with_bbox.image = pad_shift(image_with_bbox.image, new_center)
     return image_with_bbox
 
-
 # This transform is going to be moved and the transforms will be moved into the get item
 # This is because this transform is supposed to be just for the image, but the transform
 # Has to add a bbox in order to construct the image
@@ -127,10 +127,10 @@ def pad_shift_with_bbox(image_with_bbox: ImageWithBBox):
 transform = transforms.Compose([
     crop_blank_space,
     transforms.ToTensor(), # Convert PIL to 1 x H x W tensor
+    transforms.Normalize(mean=.1307, std=.3081), # Normalize image tensor
     rotate_img, # Rotate image by a random angle in the specified range
     resize_img, # Resize image to random dimensions in the specified range
-    # transforms.Resize((50,50)),
-    transforms.Normalize(mean=0.1307, std=.3081), # Normalize image tensor
+    # transforms.Resize((NEW_SIZE_HEIGHT,NEW_SIZE_WIDTH)),
     add_bbox, #Transform image to class representing (image, bbox) where bbox center is randomly selected from the valid range and bbox height, width are the image dimensions
     pad_shift_with_bbox,  # Shift center of image to random location (specified in bbox) in the specified new image dimensions (global constants)
     transforms.Lambda(lambda image_with_bbox: (image_with_bbox.image, image_with_bbox.bbox)) #Return tuple (image, bbox)
@@ -172,7 +172,8 @@ class AugmentedMNISTWithBBoxes(Dataset):
         image_center_grid_cell_coordinates = compute_grid_cell_coordinates(image_center_x, image_center_y)
 
         target_grid = compute_target_grid(image_center_grid_cell_coordinates, target)
-        return (image, bbox, image_center_grid_cell_coordinates, target)
+
+        return (image, bbox, image_center_grid_cell_coordinates, target_grid, target)
     
 train_dataset = AugmentedMNISTWithBBoxes(train=True, transform=transform)
 test_dataset = AugmentedMNISTWithBBoxes(train=False, transform=transform)

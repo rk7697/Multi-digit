@@ -18,7 +18,7 @@ def test(network, test_dataloader):
     total_accuracy = 0
 
     for batch_index, (img, target) in enumerate(test_dataloader):
-
+        target = target.squeeze(0)
         # image = img.squeeze(0)
         # image = to_pil_image(image)
         # image.show()
@@ -41,8 +41,9 @@ def test(network, test_dataloader):
 
         # logits_classes_image_grid_cell = logits_image_grid_cell[2:]
 
-        prediction = torch.argmax(logits)
+        prediction = torch.argmax(logits.squeeze(0))
 
+        # print(prediction)
         # bbox = bbox[0]
         
         # print(f"relative width and height: {bbox[3], bbox[2]}")
