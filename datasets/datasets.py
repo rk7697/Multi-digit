@@ -192,9 +192,11 @@ def compute_grid_cell_coordinates(image_center_x : torch.Tensor, image_center_y 
 # contains the image's center is the
 # image's class, and the class index of 
 # every other cell is the empty class
-def compute_target_grid(image_center_grid_cell_coordinates, target):
+def compute_target_grid(image_centers_grid_cell_coordinates, targets):
     grid_of_repeated_targets = torch.full((GRID_SIZE, GRID_SIZE), EMPTY_CLASS_INDEX)
-    grid_of_repeated_targets[image_center_grid_cell_coordinates] = target
+
+    image_centers_grid_cell_coordinates_y,  image_centers_grid_cell_coordinates_x = image_centers_grid_cell_coordinates[:,0], image_centers_grid_cell_coordinates[:,1]
+    grid_of_repeated_targets[image_centers_grid_cell_coordinates_y, image_centers_grid_cell_coordinates_x] = targets
 
     target_grid = grid_of_repeated_targets
     return target_grid
@@ -216,21 +218,25 @@ class AugmentedMNISTWithBBoxes(Dataset):
         grid_cell_tracker = torch.zeros((GRID_SIZE,GRID_SIZE))
 
         # Get the images, bboxes, image center grid cell coordinates, and targets 
-        # of the subimages
-        # (Note that the indices cannot be collected first 
-        # because the transform dynamically centers and resizes images)
-        
-        # Note that bboxes, image center grid cell coordinates, and targets 
-        # must be arrays to collect a number of tensors that is only known
-        # after iterating
-        subimages = []
-        bboxes = []
-        image_centers_grid_cell_coordinates = []
-        targets = []
+        # of the subimages 
 
-        for sub_idx in range(idx, idx + MAX_DIGITS):
-            ((image,bbox), target) = self.mnist_dataset[sub_idx]
-            target = torch.tensor(target)
+        # The images, bboxes, image center grid cell coordinates, and targets are
+        # initialized to tensors of shape (MAX_DIGITS, ...) and all tensors of
+        # [0 : num_subimages] are set
+        
+        # Tensors with shape (MAX_DIGITS, ...) are directly returned with num_subimages
+        # instead of using a custom collate function in dataloader for simplicity and
+        # because MAX_DIGITS is set for dataset
+ 
+        subimages = torch.zeros((MAX_DIGITS, 1, NEW_SIZE_HEIGHT, NEW_SIZE_WIDTH), dtype=torch.float)
+        bboxes = torch.zeros((MAX_DIGITS, 4), dtype=torch.float)
+        image_centers_grid_cell_coordinates = torch.zeros((MAX_DIGITS, 2), dtype=torch.long)
+        targets = torch.zeros((MAX_DIGITS,), dtype=torch.long)
+
+        tensor_idx = 0
+        for sub_idx in range(0, MAX_DIGITS):
+            image_idx = idx + sub_idx
+            ((image,bbox), target) = self.mnist_dataset[image_idx]
 
             image_center_x, image_center_y = bbox[0], bbox[1]
 
@@ -240,46 +246,24 @@ class AugmentedMNISTWithBBoxes(Dataset):
             if(grid_cell_tracker[grid_cell_coordinates_y, grid_cell_coordinates_x] == 0):
                 grid_cell_tracker[grid_cell_coordinates_y, grid_cell_coordinates_x] = 1
 
-                subimages.append(image)
-                bboxes.append(bbox)
-                image_centers_grid_cell_coordinates.append(image_center_grid_cell_coordinates)
-                targets.append(target)
-        
-        # Stack arrays of tensors into tensor
-        subimages = torch.stack(subimages)
-        bboxes = torch.stack(bboxes)
-        image_centers_grid_cell_coordinates = torch.stack(image_centers_grid_cell_coordinates)
-        targets =torch.stack(targets)
+                subimages[tensor_idx] = image
+                bboxes[tensor_idx] = bbox
+                image_centers_grid_cell_coordinates[tensor_idx] = image_center_grid_cell_coordinates
+                targets[tensor_idx] = target
+                
+                tensor_idx +=1
+
+        # Get num_subimages
+        num_subimages = tensor_idx
 
         # Compute image as the sum of subimages where
         # the max value is clamped at 1
-        
         image = torch.sum(subimages, dim=0).clamp(max=1)
-        image = to_pil_image(image)
-        image.show()
-        exit()
 
-            
+        # Compute target grid
+        target_grid = compute_target_grid(image_centers_grid_cell_coordinates, targets)
 
-                
-        
-
-
-
-
-
-
-            # print(grid_cell_tracker[torch.tensor([0,0])])
-            # print(grid_cell_tracker[image_center_grid_cell_coordinates])
-            
-            # print(type(grid_cell_tracker[image_center_grid_cell_coordinates]))
-        exit()
-
-
-
-        target_grid = compute_target_grid(image_center_grid_cell_coordinates, target)
-
-        return (image, bbox, image_center_grid_cell_coordinates, target_grid, target)
+        return ((image, bboxes, image_centers_grid_cell_coordinates, target_grid), num_subimages)
     
 train_dataset = AugmentedMNISTWithBBoxes(train=True, transform=transform)
 test_dataset = AugmentedMNISTWithBBoxes(train=False, transform=transform)
