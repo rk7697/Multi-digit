@@ -11,6 +11,9 @@ from torchvision.transforms.functional import pad
 from network.network import GRID_SIZE
 import torchvision.transforms as transforms
 
+from torchvision.transforms import ToPILImage
+to_pil_image = ToPILImage()
+
 # Set NEW_SIZE dimensions to be 256, 256 for MNIST image
 # These are the dimensions for the full image that the digits are placed into
 # For now, use small input size for use case
@@ -23,6 +26,10 @@ GRID_INTERVAL_X_SIZE = NEW_SIZE_WIDTH/GRID_SIZE
 # An empty class is added to the set of
 # possible classes for a grid cell
 EMPTY_CLASS_INDEX = 10
+
+# Set max number of digits
+# in image
+MAX_DIGITS = 4
 
 def crop_blank_space(image):
     bbox = image.getbbox() # Get bounding box as (left, upper, right, lower) from PIL
@@ -39,12 +46,27 @@ def rotate_img(image):
 # Resize image to randomly selected height and width between MIN_DIMENSION and MAX_DIMENSION pixels
 def resize_img(image):
     # Here it is assumed that NEW_SIZE_HEIGHT is equal to NEW_SIZE_WIDTH
-    MIN_DIMENSION = NEW_SIZE_HEIGHT // (GRID_SIZE * 3)  #Set MIN_DIMENSON to 1/3 of the dimensions of a grid cell
-    MAX_DIMENSION = 64 # Set MAX_DIMENSION to dimension very close to new_size dimensions for use case
+    MIN_DIMENSION = NEW_SIZE_HEIGHT // (GRID_SIZE * 2)  #Set MIN_DIMENSON to 1/3 of the dimensions of a grid cell
+    MAX_DIMENSION = int(NEW_SIZE_HEIGHT / 1.5) # Set MAX_DIMENSION to dimension very close to new_size dimensions for use case
 
-    # Resize image to random dimensions in the valid range
-    new_height = random.randint(MIN_DIMENSION, MAX_DIMENSION) 
-    new_width = random.randint(MIN_DIMENSION, MAX_DIMENSION)
+    # Resize image to random dimensions in the valid range with the requirement 
+    # that each dimension is at least .5 times and at most 2 times the other
+    random_order = random.randint(0,1)
+    if(random_order == 0):
+        new_height = random.randint(MIN_DIMENSION, MAX_DIMENSION)
+
+        min_new_width = max(MIN_DIMENSION, new_height // 2)
+        max_new_width = min(MAX_DIMENSION, new_height * 2)
+
+        new_width = random.randint(min_new_width, max_new_width)
+    else:
+        new_width = random.randint(MIN_DIMENSION, MAX_DIMENSION)
+
+        min_new_height = max(MIN_DIMENSION, new_width // 2)
+        max_new_height = min(MAX_DIMENSION, new_width * 2)
+
+        new_height = random.randint(min_new_height, max_new_height)
+
     resize_transform = transforms.Resize((new_height, new_width)) # Define resize transform for image
     return resize_transform(image)
 
@@ -58,9 +80,25 @@ def random_img_center(image_dimensions: Tuple[int,int], new_image_dimensions = (
     half_image_width = image_width/2
     
     # Generate random integer center in random place in the valid range
-    # and subtract the fractional part of half dimension to calculate a valid center
-    new_center_y = int(random.uniform(half_image_height, new_image_height - half_image_height)) - math.modf(half_image_height)[0]
-    new_center_x = int(random.uniform(half_image_width, new_image_width - half_image_width)) - math.modf(half_image_width)[0]
+    
+    # Since a center dimension will be an integer when the image dimesion is even
+    # and will have a fraction part of .5 when the image dimension is odd,
+    # shift the center dimension range so the endpoints are integers and
+    # and shift back by the fractional part of the half image dimension
+
+    half_image_height_frac_part = math.modf(half_image_height)[0]
+    half_image_width_frac_part = math.modf(half_image_width)[0]
+
+    new_center_y = (
+        int(random.uniform((half_image_height + half_image_height_frac_part), ((new_image_height - half_image_height) + half_image_height_frac_part)))
+        - half_image_height_frac_part
+    ) 
+
+    new_center_x = (
+        int(random.uniform((half_image_width + half_image_width_frac_part), ((new_image_width - half_image_width) + half_image_width_frac_part)))
+        - half_image_width_frac_part
+    ) 
+
     return (new_center_x, new_center_y)
 
 #  Compute resulting bbox for image from random resize and random center shift
@@ -157,7 +195,7 @@ def compute_target_grid(image_center_grid_cell_coordinates, target):
     target_grid = grid_of_repeated_targets
     return target_grid
 
-# Define augmented MNIST dataset with bboxes to return (image, bbox, target)
+# Define augmented MNIST dataset with bboxes to return (image, bboxs, targets)
 class AugmentedMNISTWithBBoxes(Dataset):
     def __init__(self, train=True, transform=None):
         self.mnist_dataset = datasets.MNIST("./dataset",train=train, download=False,transform=transform)        
@@ -166,10 +204,73 @@ class AugmentedMNISTWithBBoxes(Dataset):
         return len(self.mnist_dataset)
     
     def __getitem__(self, idx):
-        ((image,bbox), target) = self.mnist_dataset[idx]
+        # For each of the next MAX_DIGITS number of digits,
+        # add the digit to the image if its center's
+        # corresponding grid cell does yet not contain 
+        # any other image center
+
+        grid_cell_tracker = torch.zeros((GRID_SIZE,GRID_SIZE))
+
+        # Get the images, bboxes, image center grid cell coordinates, and targets 
+        # of the subimages
+        # (Note that the indices cannot be collected first 
+        # because the transform dynamically centers and resizes images)
         
-        image_center_x, image_center_y = bbox[0], bbox[1]
-        image_center_grid_cell_coordinates = compute_grid_cell_coordinates(image_center_x, image_center_y)
+        # Note that bboxes, image center grid cell coordinates, and targets 
+        # must be arrays to collect a number of tensors that is only known
+        # after iterating
+        subimages = []
+        bboxes = []
+        image_centers_grid_cell_coordinates = []
+        targets = []
+
+        for sub_idx in range(idx, idx + MAX_DIGITS):
+            ((image,bbox), target) = self.mnist_dataset[sub_idx]
+            target = torch.tensor(target)
+
+            image_center_x, image_center_y = bbox[0], bbox[1]
+
+            image_center_grid_cell_coordinates = compute_grid_cell_coordinates(image_center_x, image_center_y)
+
+            grid_cell_coordinates_y, grid_cell_coordinates_x = image_center_grid_cell_coordinates[0].item(), image_center_grid_cell_coordinates[1].item()   
+            if(grid_cell_tracker[grid_cell_coordinates_y, grid_cell_coordinates_x] == 0):
+                grid_cell_tracker[grid_cell_coordinates_y, grid_cell_coordinates_x] = 1
+
+                subimages.append(image)
+                bboxes.append(bbox)
+                image_centers_grid_cell_coordinates.append(image_center_grid_cell_coordinates)
+                targets.append(target)
+        
+        # Stack arrays of tensors into tensor
+        subimages = torch.stack(subimages)
+        bboxes = torch.stack(bboxes)
+        image_centers_grid_cell_coordinates = torch.stack(image_centers_grid_cell_coordinates)
+        targets =torch.stack(targets)
+
+        # Compute image as the sum of subimages where
+        # the max result is clamped at 1
+        image = torch.sum(subimages, dim=0).clamp(min=0,max=1)
+        image = to_pil_image(image)
+        image.show()
+        exit()
+
+            
+
+                
+        
+
+
+
+
+
+
+            # print(grid_cell_tracker[torch.tensor([0,0])])
+            # print(grid_cell_tracker[image_center_grid_cell_coordinates])
+            
+            # print(type(grid_cell_tracker[image_center_grid_cell_coordinates]))
+        exit()
+
+
 
         target_grid = compute_target_grid(image_center_grid_cell_coordinates, target)
 

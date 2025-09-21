@@ -402,7 +402,7 @@ class multi_digit(nn.Module):
 
 
             # Number 3
-            # # Level 0 downsample
+            # Level 0 downsample
             x = self.conv_level_0_downsample_0(x)
             x = self.activation(x)
             x = self.conv_level_0_downsample_1(x)
@@ -419,7 +419,7 @@ class multi_digit(nn.Module):
             x = self.activation(x)
             x = self.pool_level_1(x)
 
-            # # Level 2 downsample
+            # Level 2 downsample
             x_initial = x
             x = self.conv_level_2_downsample_0(x)
             x = self.activation(x)
