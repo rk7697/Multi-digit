@@ -47,7 +47,7 @@ def rotate_img(image):
 def resize_img(image):
     # Here it is assumed that NEW_SIZE_HEIGHT is equal to NEW_SIZE_WIDTH
     MIN_DIMENSION = NEW_SIZE_HEIGHT // (GRID_SIZE * 2)  #Set MIN_DIMENSON to 1/3 of the dimensions of a grid cell
-    MAX_DIMENSION = int(NEW_SIZE_HEIGHT / 1.5) # Set MAX_DIMENSION to dimension very close to new_size dimensions for use case
+    MAX_DIMENSION = NEW_SIZE_HEIGHT // 2 # Set MAX_DIMENSION to dimension very close to new_size dimensions for use case
 
     # Resize image to random dimensions in the valid range with the requirement 
     # that each dimension is at least .5 times and at most 2 times the other
@@ -162,10 +162,14 @@ def pad_shift_with_bbox(image_with_bbox: ImageWithBBox):
 # This is because this transform is supposed to be just for the image, but the transform
 # Has to add a bbox in order to construct the image
 # This is simpler done and further transforms are simpler done in get item
+
+# Note that no normalizaton is done because when subimages are summed, they must
+# be clamped at a max (as well as a min if they were to be standardized),
+# because the mean and std after resizing is not known, so the max and min
+# are not known
 transform = transforms.Compose([
     crop_blank_space,
     transforms.ToTensor(), # Convert PIL to 1 x H x W tensor
-    transforms.Normalize(mean=.1307, std=.3081), # Normalize image tensor
     rotate_img, # Rotate image by a random angle in the specified range
     resize_img, # Resize image to random dimensions in the specified range
     # transforms.Resize((NEW_SIZE_HEIGHT,NEW_SIZE_WIDTH)),
@@ -248,8 +252,9 @@ class AugmentedMNISTWithBBoxes(Dataset):
         targets =torch.stack(targets)
 
         # Compute image as the sum of subimages where
-        # the max result is clamped at 1
-        image = torch.sum(subimages, dim=0).clamp(min=0,max=1)
+        # the max value is clamped at 1
+        
+        image = torch.sum(subimages, dim=0).clamp(max=1)
         image = to_pil_image(image)
         image.show()
         exit()
