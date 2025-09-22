@@ -21,59 +21,16 @@ NUM_EPOCHS = 1
 num_batches = len(train_dataloader)
 
 #Instantiate losses
-loss_categorical_cross_entropy= nn.CrossEntropyLoss(reduction="none")
+loss_categorical_cross_entropy= nn.CrossEntropyLoss(reduction= "none")
 loss_binary_cross_entropy = nn.BCEWithLogitsLoss(reduction = "none")
 
-def get_max_indices_height_width_of_bboxs_and_predictions_logits(logits):
-    logits_classes = logits[:, 2:, :, :]
-    logits_classes_flattened = logits_classes.flatten(start_dim = 1, end_dim = 3)
-    max_indices_logits_classes_flattened = torch.argmax(logits_classes_flattened, dim = 1)
-    logits_classes_shape = logits_classes.shape
-    max_indices_logits_classes_by_dim = torch.unravel_index(max_indices_logits_classes_flattened, logits_classes_shape[1:])
-    max_indices_logits_classes_height, max_indices_logits_classes_width = max_indices_logits_classes_by_dim[1:]
 
-    return (max_indices_logits_classes_height, max_indices_logits_classes_width)
-
-def get_bboxs_and_predictions_logits_for_grid_cell_from_coordinates(logits, grid_cell_coordinates):
-    # max_indices_logits_classes_height, max_indices_logits_classes_width = get_indices_height_width_of_bboxs_and_predictions_logits(logits)
-    indices_logits_height, indices_logits_width = grid_cell_coordinates[:, 0], grid_cell_coordinates[:, 1]
-    logits_batch_size = logits.shape[0]
-    indices_batches = torch.arange(logits_batch_size)
-
-    bboxs_and_predictions = logits[indices_batches, :, indices_logits_height, indices_logits_width]
-    return bboxs_and_predictions
 # def get_bboxs_and_predictions_logits_for_neighboring_grid_cells_of_image_center(logits, grid_cell_coordinates):
 #     indices_logits_height, indices_logits_width = grid_cell_coordinates[:, 0], grid_cell_coordinates[:, 1]
 #     logits_batch_size = logits.shape[0]
 #     indices_batches = torch.arange(logits_batch_size)
 
 #      bboxs_and_predictions = logits[indices_batches, :, indices_logits_height-1:, indices_logits_width]
-
-
-
-    
-
-def loss_from_bbox_and_class_predictions_for_image_center_grid_cell(bboxs_and_predictions_logits, bboxes, grid_cell_coordinates, targets):
-    logits_image_relative_widths =  bboxs_and_predictions_logits[:, 0]
-    logits_image_relative_heights =  bboxs_and_predictions_logits[:, 1]
-    logits_classes = bboxs_and_predictions_logits[:, 2:]
-    
-    
-    # Image bbox is tensor of shape (center_x, center_y, H, W)
-    image_heights, image_widths = bboxes[:,2], bboxes[:,3]
-    image_relative_heights, image_relative_widths = image_heights / NEW_SIZE_HEIGHT, image_widths / NEW_SIZE_WIDTH
-    # print(image_relative_heights, image_relative_widths)
-    # exit()
-    # print(grid_cell_coordinates.squeeze(0))
-
-    # exit()
-    loss = 0.0
-    loss += loss_binary_cross_entropy(logits_image_relative_widths, image_relative_widths) 
-    loss += loss_binary_cross_entropy(logits_image_relative_heights, image_relative_heights) 
-    
-    # loss += loss_categorical_cross_entropy(bboxs_and_predictions_logits, targets)
-    # exit()
-    return loss
 
 def loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bboxes, image_center_grid_cell_coordinates, target_grids, num_subimages):
     # Get repeated batch indices for subimages
@@ -156,13 +113,53 @@ def loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bbo
 
     return loss
 
+# Get average accuracy of class predictions at subimage center cells
+def accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, targets, num_subimages):
+    # Get repeated batch indices for subimages
+    num_batches = num_subimages.shape[0]
+    batch_indices = torch.arange(num_batches, device=device)
+    batch_indices_subimages = torch.repeat_interleave(batch_indices, num_subimages)
+    
+
+    # Get subimage indices, repeated for batches
+    subimage_indices = torch.arange(MAX_DIGITS, device=device)
+    subimage_indices_repeated = subimage_indices.repeat(num_batches)
+    num_subimages_repeated_interleaved = torch.repeat_interleave(num_subimages, MAX_DIGITS)
+    mask = subimage_indices_repeated < num_subimages_repeated_interleaved
+    subimage_indices_batches = subimage_indices_repeated[mask]
+
+    # Get image_center_grid_cell_coordinates
+    image_center_grid_cell_coordinates_y = image_centers_grid_cell_coordinates[batch_indices_subimages, subimage_indices_batches, 0]
+    image_center_grid_cell_coordinates_x = image_centers_grid_cell_coordinates[batch_indices_subimages, subimage_indices_batches, 1]
+
+    # Get grid of class logits
+    logits_classes = bboxs_and_predictions_logits[:, 2:, :, :]
+
+    # Get class logits of subimage_center_cells
+    logits_classes_subimage_center_cells = logits_classes[batch_indices_subimages, :, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
+
+    # Get 
+    indices_class_predictions_subimage_center_cells = torch.argmax(logits_classes_subimage_center_cells, dim=1)
+    mask = (indices_class_predictions_subimage_center_cells == targets)
+
+    weight_tensor = torch.repeat_interleave((1.0 / num_subimages), num_subimages) / num_batches
+
+    accuracy_of_classes_at_subimage_center_cells = torch.sum(mask * weight_tensor)
+    
+
+
+    print(accuracy_of_classes_at_subimage_center_cells)
+    
+    exit()
+
+
 def train(network, num_epochs, train_dataloader):
     for epoch in range(num_epochs):
         error = 0.0
         accuracy_of_classes_at_image_center_cell = 0.0
         accuracy_of_classes_at_neighboring_cells = 0.0
-        for batch_index, ((imgs, bboxes, image_centers_grid_cell_coordinates, target_grids), num_subimages) in enumerate(train_dataloader):  
-            imgs, bboxes, image_centers_grid_cell_coordinates, target_grids = [tensor.to(device) for tensor in [imgs, bboxes, image_centers_grid_cell_coordinates, target_grids]]
+        for batch_index, ((imgs, bboxes, image_centers_grid_cell_coordinates, target_grids, targets), num_subimages) in enumerate(train_dataloader):  
+            imgs, bboxes, image_centers_grid_cell_coordinates, target_grids, targets = [tensor.to(device) for tensor in [imgs, bboxes, image_centers_grid_cell_coordinates, target_grids, targets]]
             num_subimages = num_subimages.to(device)
             
             optimizer.zero_grad()
@@ -174,7 +171,7 @@ def train(network, num_epochs, train_dataloader):
 
             # bboxs_and_predictions_logits_for_neighboring_grid_cells_of_image_center = get_bboxs_and_predictions_logits_for_neighboring_grid_cells_of_image_center(logits, image_centers_grid_cell_coordinates)
             # class_logits_for_neighboring_grid_cells_of_image_center = bboxs_and_predictions_logits_for_neighboring_grid_cells_of_image_center[:, 2:]
-
+            
             bboxs_and_predictions_logits = logits
             
             # if(torch.argmax(class_logits_for_image_center_grid_cell.squeeze(0)) == targets.squeeze(0)):
@@ -191,6 +188,8 @@ def train(network, num_epochs, train_dataloader):
 
 
             # loss = loss_from_bbox_and_class_predictions_for_image_center_grid_cell(bboxs_and_predictions_logits, bboxes, image_centers_grid_cell_coordinates, targets)
+            accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, targets, num_subimages)
+            exit()
             loss = loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bboxes, image_centers_grid_cell_coordinates, target_grids, num_subimages)
             
             loss.backward()

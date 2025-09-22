@@ -47,7 +47,7 @@ def rotate_img(image):
 def resize_img(image):
     # Here it is assumed that NEW_SIZE_HEIGHT is equal to NEW_SIZE_WIDTH
     MIN_DIMENSION = NEW_SIZE_HEIGHT // (GRID_SIZE * 2)  #Set MIN_DIMENSON to 1/3 of the dimensions of a grid cell
-    MAX_DIMENSION = NEW_SIZE_HEIGHT // 2 # Set MAX_DIMENSION to dimension very close to new_size dimensions for use case
+    MAX_DIMENSION = int(NEW_SIZE_HEIGHT / 1.5) # Set MAX_DIMENSION to dimension very close to new_size dimensions for use case
 
     # Resize image to random dimensions in the valid range with the requirement 
     # that each dimension is at least .5 times and at most 2 times the other
@@ -160,7 +160,7 @@ def pad_shift_with_bbox(image_with_bbox: ImageWithBBox):
 
 # This transform is going to be moved and the transforms will be moved into the get item
 # This is because this transform is supposed to be just for the image, but the transform
-# Has to add a bbox in order to construct the image
+# has to add a bbox in order to construct the image
 # This is simpler done and further transforms are simpler done in get item
 
 # Note that no normalizaton is done because when subimages are summed, they must
@@ -192,11 +192,15 @@ def compute_grid_cell_coordinates(image_center_x : torch.Tensor, image_center_y 
 # contains the image's center is the
 # image's class, and the class index of 
 # every other cell is the empty class
-def compute_target_grid(image_centers_grid_cell_coordinates, targets):
+
+# Note that we need to set up to num_subimages targets
+# I thin this is only place where we went past num_subimages but need to check
+# if there are other places
+def compute_target_grid(image_centers_grid_cell_coordinates, targets, num_subimages):
     grid_of_repeated_targets = torch.full((GRID_SIZE, GRID_SIZE), EMPTY_CLASS_INDEX)
 
-    image_centers_grid_cell_coordinates_y,  image_centers_grid_cell_coordinates_x = image_centers_grid_cell_coordinates[:,0], image_centers_grid_cell_coordinates[:,1]
-    grid_of_repeated_targets[image_centers_grid_cell_coordinates_y, image_centers_grid_cell_coordinates_x] = targets
+    image_centers_grid_cell_coordinates_y,  image_centers_grid_cell_coordinates_x = image_centers_grid_cell_coordinates[0:num_subimages,0], image_centers_grid_cell_coordinates[0:num_subimages,1]
+    grid_of_repeated_targets[image_centers_grid_cell_coordinates_y, image_centers_grid_cell_coordinates_x] = targets[0:num_subimages]
 
     target_grid = grid_of_repeated_targets
     return target_grid
@@ -235,7 +239,7 @@ class AugmentedMNISTWithBBoxes(Dataset):
 
         tensor_idx = 0
         for sub_idx in range(0, MAX_DIGITS):
-            image_idx = idx + sub_idx
+            image_idx = ((idx + sub_idx) % len(self))
             ((image,bbox), target) = self.mnist_dataset[image_idx]
 
             image_center_x, image_center_y = bbox[0], bbox[1]
@@ -263,7 +267,7 @@ class AugmentedMNISTWithBBoxes(Dataset):
         # Compute target grid
         target_grid = compute_target_grid(image_centers_grid_cell_coordinates, targets)
         
-        return ((image, bboxes, image_centers_grid_cell_coordinates, target_grid), num_subimages)
+        return ((image, bboxes, image_centers_grid_cell_coordinates, target_grid, targets), num_subimages)
     
 train_dataset = AugmentedMNISTWithBBoxes(train=True, transform=transform)
 test_dataset = AugmentedMNISTWithBBoxes(train=False, transform=transform)
