@@ -262,7 +262,7 @@ class AugmentedMNISTWithBBoxes(Dataset):
 
         # Compute target grid
         target_grid = compute_target_grid(image_centers_grid_cell_coordinates, targets)
-
+        
         return ((image, bboxes, image_centers_grid_cell_coordinates, target_grid), num_subimages)
     
 train_dataset = AugmentedMNISTWithBBoxes(train=True, transform=transform)

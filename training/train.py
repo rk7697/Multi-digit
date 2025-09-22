@@ -21,9 +21,8 @@ NUM_EPOCHS = 1
 num_batches = len(train_dataloader)
 
 #Instantiate losses
-loss_categorical_cross_entropy_mean = nn.CrossEntropyLoss(reduction="mean")
-loss_categorical_cross_entropy_sum = nn.CrossEntropyLoss(reduction="sum")
-loss_binary_cross_entropy = nn.BCEWithLogitsLoss()
+loss_categorical_cross_entropy= nn.CrossEntropyLoss(reduction="none")
+loss_binary_cross_entropy = nn.BCEWithLogitsLoss(reduction = "none")
 
 def get_max_indices_height_width_of_bboxs_and_predictions_logits(logits):
     logits_classes = logits[:, 2:, :, :]
@@ -90,41 +89,56 @@ def loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bbo
     subimage_indices_batches = subimage_indices_repeated[mask]
 
     # Get relative heights and widths of images
-    image_heights, image_widths = bboxes[batch_indices_subimages, subimage_indices_batches, :, 2], bboxes[batch_indices_subimages,subimage_indices_batches, :, 3] # Image bbox is tensor of shape (center_x, center_y, H, W)
+    image_heights, image_widths = bboxes[batch_indices_subimages, subimage_indices_batches, 2], bboxes[batch_indices_subimages,subimage_indices_batches, 3] # Image bbox is tensor of shape (center_x, center_y, H, W)
     image_relative_heights, image_relative_widths = image_heights / NEW_SIZE_HEIGHT, image_widths / NEW_SIZE_WIDTH
-    exit()
-    # Get the relative width and height predictions of the image center grid cell    
-    image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x = image_center_grid_cell_coordinates[:, 0], image_center_grid_cell_coordinates[:, 1]
-    
-    logits_batch_size = bboxs_and_predictions_logits.shape[0]
-    indices_batches = torch.arange(logits_batch_size)
 
-    logits_image_relative_widths =  bboxs_and_predictions_logits[indices_batches, 0, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
-    logits_image_relative_heights =  bboxs_and_predictions_logits[indices_batches, 1, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
+    # Get the relative width and height predictions of the image center grid cell    
+    image_center_grid_cell_coordinates_y = image_center_grid_cell_coordinates[batch_indices_subimages, subimage_indices_batches, 0]
+    image_center_grid_cell_coordinates_x = image_center_grid_cell_coordinates[batch_indices_subimages, subimage_indices_batches, 1]
+    
+    logits_image_relative_widths =  bboxs_and_predictions_logits[batch_indices_subimages, 0, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
+    logits_image_relative_heights =  bboxs_and_predictions_logits[batch_indices_subimages, 1, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
 
     # Get grid of class logits
     logits_classes = bboxs_and_predictions_logits[:, 2:, :, :]
 
-    #Get class logits and targets of image center grid cells
-    logits_classes_of_image_center_grid_cells = logits_classes[indices_batches, :, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
-    targets_of_image_center_grid_cells = target_grids[indices_batches, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
-
     #Compute loss
     loss = 0.0
 
-    # Compute BCE losses for relative width and height logits
-    loss += loss_binary_cross_entropy(logits_image_relative_widths, image_relative_widths) 
-    loss += loss_binary_cross_entropy(logits_image_relative_heights, image_relative_heights)
+    # Compute BCE losses for relative width and height logits where
+    # the losses for each dimension are averaged across each subimage
+    # within a batch element and then across batch elements
+    loss_relative_widths_logits = loss_binary_cross_entropy(logits_image_relative_widths, image_relative_widths) 
+    loss_relative_heights_logits = loss_binary_cross_entropy(logits_image_relative_heights, image_relative_heights)
+
+    # Since relative width and height logits are one-dimensional ordered by
+    # subimage within each batch element, across subimages and across 
+    # batch elements by taking a dot product with a weight tensor
+    element_inverse_num_subimages = 1.0 / num_subimages
+    repeated_element_inverse_num_subimages = torch.repeat_interleave(element_inverse_num_subimages, num_subimages)
+    weight_tensor_relative_widths_and_heights = repeated_element_inverse_num_subimages / num_batches
+
+    loss_relative_widths_logits = torch.dot(loss_relative_widths_logits, weight_tensor_relative_widths_and_heights)
+    loss_relative_heights_logits = torch.dot(loss_relative_heights_logits, weight_tensor_relative_widths_and_heights)
+
+    # Add losses for relative width and height logits
+    loss += loss_relative_widths_logits
+    loss += loss_relative_heights_logits
 
     # Compute weighted categorical cross entropy losses for class logits grid cells
-    # where the CCE loss of image center grid cell's class logits is weighted equally 
-    # as the sum of the CCE losses of all other grid cells
-    loss_term_all_cells = loss_categorical_cross_entropy_sum(logits_classes, target_grids)
-    loss_term_image_center_cell = loss_categorical_cross_entropy_mean(logits_classes_of_image_center_grid_cells, targets_of_image_center_grid_cells)
-    loss_term_non_image_center_cells = loss_term_all_cells - loss_term_image_center_cell
+    # where the average of the CCE losses of subimage center grid cell class logits 
+    # is weighted equally as the average of the CCE losses of all other grid cells
+    # in the grid, and then average across each image and grid in the batch,
+    # by taking a dot product with a weight tensor
+    loss_class_logits = loss_categorical_cross_entropy(logits_classes, target_grids)
 
-    loss += 0.5 * loss_term_image_center_cell + 0.5 * 1/(GRID_SIZE**2 - 1) * (loss_term_non_image_center_cells)
+    
+    weight_tensor_class_logits = torch.fill()
 
+    
+    exit()
+
+    exit()
     return loss
 
 def train(network, num_epochs, train_dataloader):
@@ -139,7 +153,7 @@ def train(network, num_epochs, train_dataloader):
             optimizer.zero_grad()
             
             logits=network(imgs)
-
+            
             # bboxs_and_predictions_logits_for_image_center_grid_cell = get_bboxs_and_predictions_logits_for_grid_cell_from_coordinates(logits, images_centers_grid_cell_coordinates)
             # class_logits_for_image_center_grid_cell = bboxs_and_predictions_logits_for_image_center_grid_cell[:, 2:]
 
