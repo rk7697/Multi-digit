@@ -151,6 +151,9 @@ def loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bbo
     loss_class_logits = torch.sum(loss_class_logits * weight_tensor_class_logits, dim=(1, 2))
     loss_class_logits = torch.mean(loss_class_logits, dim = 0)
 
+    # Add loss for class logits
+    loss += loss_class_logits
+
     return loss
 
 def train(network, num_epochs, train_dataloader):
