@@ -128,17 +128,29 @@ def loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bbo
     # Compute weighted categorical cross entropy losses for class logits grid cells
     # where the average of the CCE losses of subimage center grid cell class logits 
     # is weighted equally as the average of the CCE losses of all other grid cells
-    # in the grid, and then average across each image and grid in the batch,
-    # by taking a dot product with a weight tensor
+    # in the grid, and the loss is averaged across each image and grid in the batch.
+
+    # Take a dot product with a weight tensor and then average across each
+    # image and grid in the batch
     loss_class_logits = loss_categorical_cross_entropy(logits_classes, target_grids)
 
+    weight_non_subimage_center_cells = 0.5 * (1.0 / (GRID_SIZE**2 - num_subimages))
+    weight_subimage_center_cells = 0.5 * (1.0 / num_subimages) 
     
-    weight_tensor_class_logits = torch.fill()
+    # Expand weight_non_subimage_center_cells to shape (num_batches, GRID_SIZE, GRID_SIZE)
+    weight_non_subimage_center_cells_expanded_dims = weight_non_subimage_center_cells.view((num_batches, 1, 1))
+    weight_tensor_class_logits = weight_non_subimage_center_cells_expanded_dims.repeat((1, GRID_SIZE, GRID_SIZE))
 
-    
-    exit()
+    # Set the weight tensor at subimage center cells to weight_subimage_centers_cells as 
+    # weight_subimage_center_cells that has repeat interleaved num_subimages times
+    weight_subimage_centers_cells = torch.repeat_interleave(weight_subimage_center_cells, num_subimages)
+    weight_tensor_class_logits[batch_indices_subimages, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x] = weight_subimage_centers_cells
 
-    exit()
+    # Take dot product and sum across height and width dimensions, and
+    # then average across batches
+    loss_class_logits = torch.sum(loss_class_logits * weight_tensor_class_logits, dim=(1, 2))
+    loss_class_logits = torch.mean(loss_class_logits, dim = 0)
+
     return loss
 
 def train(network, num_epochs, train_dataloader):
