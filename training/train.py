@@ -24,14 +24,6 @@ num_batches = len(train_dataloader)
 loss_categorical_cross_entropy= nn.CrossEntropyLoss(reduction= "none")
 loss_binary_cross_entropy = nn.BCEWithLogitsLoss(reduction = "none")
 
-
-# def get_bboxs_and_predictions_logits_for_neighboring_grid_cells_of_image_center(logits, grid_cell_coordinates):
-#     indices_logits_height, indices_logits_width = grid_cell_coordinates[:, 0], grid_cell_coordinates[:, 1]
-#     logits_batch_size = logits.shape[0]
-#     indices_batches = torch.arange(logits_batch_size)
-
-#      bboxs_and_predictions = logits[indices_batches, :, indices_logits_height-1:, indices_logits_width]
-
 def loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bboxes, image_center_grid_cell_coordinates, target_grids, num_subimages):
     # Get repeated batch indices for subimages
     num_batches = num_subimages.shape[0]
@@ -114,7 +106,7 @@ def loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bbo
     return loss
 
 # Get average accuracy of class predictions at subimage center cells
-def accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, targets, num_subimages):
+def accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages):
     # Get repeated batch indices for subimages
     num_batches = num_subimages.shape[0]
     batch_indices = torch.arange(num_batches, device=device)
@@ -138,20 +130,96 @@ def accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, i
     # Get class logits of subimage_center_cells
     logits_classes_subimage_center_cells = logits_classes[batch_indices_subimages, :, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
 
-    # Get 
+    # Get class index prections of subimage center cells and 
+    # get targets of subimage center cells from target grids
     indices_class_predictions_subimage_center_cells = torch.argmax(logits_classes_subimage_center_cells, dim=1)
-    mask = (indices_class_predictions_subimage_center_cells == targets)
+    targets_subimages = target_grids[batch_indices_subimages, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
 
+    # Get accuracy of class predictions of of subimage center cells
+    # averaged across subimages per batch element and across batches
+    mask = (indices_class_predictions_subimage_center_cells == targets_subimages)
     weight_tensor = torch.repeat_interleave((1.0 / num_subimages), num_subimages) / num_batches
 
     accuracy_of_classes_at_subimage_center_cells = torch.sum(mask * weight_tensor)
+    return accuracy_of_classes_at_subimage_center_cells
+
+# Get average accuracy of class predictions at neighboring cells of subimage center cells
+# Accuracy is averaged over neighbors cells per subimage, over subimages, and over
+# batch elements per batch. 
+# Note that overlapping neighbors cells are involved in the average of neighbor cells
+# for each subimage center cell they neighbor
+def accuracy_of_classes_at_neighboring_cells_of_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages):
+    # Get repeated batch indices for subimages
+    num_batches = num_subimages.shape[0]
+    batch_indices = torch.arange(num_batches, device=device)
+    batch_indices_subimages = torch.repeat_interleave(batch_indices, num_subimages)
     
+    # Get subimage indices, repeated for batches
+    subimage_indices = torch.arange(MAX_DIGITS, device=device)
+    subimage_indices_repeated = subimage_indices.repeat(num_batches)
+    num_subimages_repeated_interleaved = torch.repeat_interleave(num_subimages, MAX_DIGITS)
+    mask = subimage_indices_repeated < num_subimages_repeated_interleaved
+    subimage_indices_batches = subimage_indices_repeated[mask]
 
+    # Get image_center_grid_cell_coordinates of subimages 
+    image_centers_grid_cell_coordinates_subimages = image_centers_grid_cell_coordinates[batch_indices_subimages, subimage_indices_batches, :]
 
-    print(accuracy_of_classes_at_subimage_center_cells)
+    # Get grid cell coordinates of neighboring cells of subimage center cells
+    # by adding offsets from subimage center cells that are repeated by the number 
+    # of neighboring cells per subimage center cell times
+
+    # Get offsets
+    offsets_indices_y = torch.linspace(start = -1, end = 1, steps = 3, dtype = torch.long, device=device)
+    offsets_indices_x = torch.linspace(start = -1, end = 1, steps = 3, dtype = torch.long, device=device)
+    offsets_indices = torch.cartesian_prod(offsets_indices_y, offsets_indices_x)
+    offsets_center = torch.tensor([0,0], device=device)
+    mask = torch.logical_not((offsets_indices == offsets_center).all(dim = 1)) # Get indices where the tensor element along dimension 1 is [0,0], and then invert indices
+    offsets_neighboring_cells_from_subimage_center_cells = offsets_indices[mask, :]
+    num_subimages_size = torch.sum(num_subimages) # Since num_subimages is a tensor of shape (num_batches,1), get total number of subimages to repeat offsets by
+    offsets_neighboring_cells_from_subimage_center_cells_subimages = offsets_neighboring_cells_from_subimage_center_cells.repeat((num_subimages_size, 1))
     
-    exit()
+    # Add grid cell coordinates of subimage center cells to offsets
+    # and remove grid cell coordinates that are outside of the range
+    # for shape (GRID_SIZE, GRID_SIZE)
+    num_neighboring_cells_per_subimage_center_cell = offsets_neighboring_cells_from_subimage_center_cells.shape[0]
+    image_centers_grid_cell_coordinates_subimages_neighbors = torch.repeat_interleave(image_centers_grid_cell_coordinates_subimages, num_neighboring_cells_per_subimage_center_cell, dim=0)
+    neighboring_cells_of_image_centers_grid_cell_coordinates_subimages = image_centers_grid_cell_coordinates_subimages_neighbors + offsets_neighboring_cells_from_subimage_center_cells_subimages
+    mask1 = (neighboring_cells_of_image_centers_grid_cell_coordinates_subimages >= 0).all(dim=1)
+    mask2 = (neighboring_cells_of_image_centers_grid_cell_coordinates_subimages < GRID_SIZE).all(dim=1)
+    mask_in_range_cells = torch.logical_and(mask1, mask2)
+    neighboring_cells_of_image_centers_grid_cell_coordinates_subimages = neighboring_cells_of_image_centers_grid_cell_coordinates_subimages[mask_in_range_cells, :]
 
+    # Get grid of class logits
+    logits_classes = bboxs_and_predictions_logits[:, 2:, :, :]
+
+    # Get grid cell coordinates of neighboring cells for each of H and W dimensions
+    neighboring_cells_of_image_centers_grid_cell_coordinates_subimages_y = neighboring_cells_of_image_centers_grid_cell_coordinates_subimages[:, 0]
+    neighboring_cells_of_image_centers_grid_cell_coordinates_subimages_x = neighboring_cells_of_image_centers_grid_cell_coordinates_subimages[:, 1]
+
+    # Get neighboring cell logits
+    batch_indices_subimages_neighbors = torch.repeat_interleave(batch_indices_subimages, num_neighboring_cells_per_subimage_center_cell)
+    batch_indices_subimages_neighbors = batch_indices_subimages_neighbors[mask_in_range_cells]
+    logits_classes_neighboring_cells_of_subimage_center_cells = logits_classes[batch_indices_subimages_neighbors, :, neighboring_cells_of_image_centers_grid_cell_coordinates_subimages_y, neighboring_cells_of_image_centers_grid_cell_coordinates_subimages_x]
+    
+    # Get class index prections of neighboring cells of subimage center cells 
+    # and get targets from target grids
+    indices_class_predictions_subimage_center_cells = torch.argmax(logits_classes_neighboring_cells_of_subimage_center_cells, dim=1)
+    targets_subimages = target_grids[batch_indices_subimages_neighbors, neighboring_cells_of_image_centers_grid_cell_coordinates_subimages_y, neighboring_cells_of_image_centers_grid_cell_coordinates_subimages_x]
+
+    # Get accuracy of class predictions of neighboring cells of subimage center cells 
+    # averaged across subimage, across subimages, and across batches
+    mask = (indices_class_predictions_subimage_center_cells == targets_subimages)
+
+    element_inverse_num_subimages = 1.0 / num_subimages
+    repeated_element_inverse_num_subimages = torch.repeat_interleave(element_inverse_num_subimages, num_subimages * num_neighboring_cells_per_subimage_center_cell)
+    repeated_element_inverse_num_subimages = repeated_element_inverse_num_subimages[mask_in_range_cells]
+    # Note that since some neighbor cells may be out of range, dividing by num_neighboring_cells_per_subimage_center_cell is slightly erroneous for these cases
+    # Currently it does not seem there is a direct torch way to do iterative averages over a dimension with strides specified by another tensor, so the average assumes
+    # each sub image center cell has num_neighboring_cells_per_subimage_center_cell neighbors
+    weight_tensor = repeated_element_inverse_num_subimages / (num_batches * num_neighboring_cells_per_subimage_center_cell) 
+
+    accuracy_of_classes_at_neighboring_cells_of_subimage_center_cells = torch.sum(mask * weight_tensor)
+    return accuracy_of_classes_at_neighboring_cells_of_subimage_center_cells
 
 def train(network, num_epochs, train_dataloader):
     for epoch in range(num_epochs):
@@ -166,30 +234,11 @@ def train(network, num_epochs, train_dataloader):
             
             logits=network(imgs)
             
-            # bboxs_and_predictions_logits_for_image_center_grid_cell = get_bboxs_and_predictions_logits_for_grid_cell_from_coordinates(logits, images_centers_grid_cell_coordinates)
-            # class_logits_for_image_center_grid_cell = bboxs_and_predictions_logits_for_image_center_grid_cell[:, 2:]
-
-            # bboxs_and_predictions_logits_for_neighboring_grid_cells_of_image_center = get_bboxs_and_predictions_logits_for_neighboring_grid_cells_of_image_center(logits, image_centers_grid_cell_coordinates)
-            # class_logits_for_neighboring_grid_cells_of_image_center = bboxs_and_predictions_logits_for_neighboring_grid_cells_of_image_center[:, 2:]
-            
             bboxs_and_predictions_logits = logits
             
-            # if(torch.argmax(class_logits_for_image_center_grid_cell.squeeze(0)) == targets.squeeze(0)):
-            #     accuracy_of_classes_at_image_center_cell+=1.0
+            # accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages)
+            # accuracy_of_classes_at_neighboring_cells_of_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages)
 
-            # image_centers_grid_cell_coordinates_flattened = image_centers_grid_cell_coordinates.squeeze(0)
-            
-            # #Since the new image size is at least 32x32, the corresponding image center grid cell will always have neighboring cells
-            # for i in range(-1,2):
-            #     for j in range (-1,2):
-            #         bboxs_and_predictions_logits_for_cell = get_bboxs_and_predictions_logits_for_grid_cell_from_coordinates(logits, torch.tensor([image_centers_grid_cell_coordinates_flattened[0]+i, image_centers_grid_cell_coordinates_flattened[1]+j]).unsqueeze(0))
-            #         if(torch.argmax(bboxs_and_predictions_logits_for_cell.squeeze(0)) == EMPTY_CLASS_INDEX):
-            #             accuracy_of_classes_at_neighboring_cells+=1.0/8
-
-
-            # loss = loss_from_bbox_and_class_predictions_for_image_center_grid_cell(bboxs_and_predictions_logits, bboxes, image_centers_grid_cell_coordinates, targets)
-            accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, targets, num_subimages)
-            exit()
             loss = loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bboxes, image_centers_grid_cell_coordinates, target_grids, num_subimages)
             
             loss.backward()

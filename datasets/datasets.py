@@ -193,14 +193,16 @@ def compute_grid_cell_coordinates(image_center_x : torch.Tensor, image_center_y 
 # image's class, and the class index of 
 # every other cell is the empty class
 
-# Note that we need to set up to num_subimages targets
-# I thin this is only place where we went past num_subimages but need to check
-# if there are other places
 def compute_target_grid(image_centers_grid_cell_coordinates, targets, num_subimages):
+    # Note that we need to get targets of subimages from targets
+    # and grid cell coordinates of subimages from grid cell coordinates
+    targets_subimages = targets[0 : num_subimages]
+    image_centers_grid_cell_coordinates_subimages = image_centers_grid_cell_coordinates[0 : num_subimages]
+
     grid_of_repeated_targets = torch.full((GRID_SIZE, GRID_SIZE), EMPTY_CLASS_INDEX)
 
-    image_centers_grid_cell_coordinates_y,  image_centers_grid_cell_coordinates_x = image_centers_grid_cell_coordinates[0:num_subimages,0], image_centers_grid_cell_coordinates[0:num_subimages,1]
-    grid_of_repeated_targets[image_centers_grid_cell_coordinates_y, image_centers_grid_cell_coordinates_x] = targets[0:num_subimages]
+    image_centers_grid_cell_coordinates_y,  image_centers_grid_cell_coordinates_x = image_centers_grid_cell_coordinates_subimages[:, 0], image_centers_grid_cell_coordinates_subimages[:, 1]
+    grid_of_repeated_targets[image_centers_grid_cell_coordinates_y, image_centers_grid_cell_coordinates_x] = targets_subimages
 
     target_grid = grid_of_repeated_targets
     return target_grid
@@ -265,7 +267,7 @@ class AugmentedMNISTWithBBoxes(Dataset):
         image = torch.sum(subimages, dim=0).clamp(max=1)
 
         # Compute target grid
-        target_grid = compute_target_grid(image_centers_grid_cell_coordinates, targets)
+        target_grid = compute_target_grid(image_centers_grid_cell_coordinates, targets, num_subimages)
         
         return ((image, bboxes, image_centers_grid_cell_coordinates, target_grid, targets), num_subimages)
     
