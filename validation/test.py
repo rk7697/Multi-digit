@@ -1,73 +1,102 @@
-import logging
+from __init__ import device
+from datasets.datasets import EMPTY_CLASS_INDEX
 from datasets.dataloaders import (
     test_dataloader
 )
-from network.network import multi_digit
+import logging
+from training.train import accuracy_of_classes_at_subimage_center_cells
+from network.network import (
+    multi_digit, GRID_SIZE)
 import torch
-
-PRINT_INTERVAL = 30
-
 from torchvision.transforms import ToPILImage
 to_pil_image = ToPILImage()
 
-# Create logger to log validation accuracy in the specified directory
-logging.basicConfig(filename="./validation/testing_accuracy.log", level=logging.INFO)
+# Requires batch size of 1
+def integer_accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages):
+    num_batches = num_subimages.shape[0]
+    if num_batches != 1 or bboxs_and_predictions_logits.shape[0] != 1 or image_centers_grid_cell_coordinates.shape[0] !=1 or target_grids.shape[0] !=1:
+        raise ValueError("Batch size must be 1.")
+    
+    num_subimages = num_subimages[0]
+    accuracy_of_classes_at_subimage_center_cells = accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages).item()
+    
+    integer_accuracy_of_classes_at_subimage_center_cells = int(num_subimages * accuracy_of_classes_at_subimage_center_cells)
+    return integer_accuracy_of_classes_at_subimage_center_cells
+
+# Requires batch size of 1
+def center_and_bbox_predictions(bboxs_and_predictions_logits):
+    num_batches = bboxs_and_predictions_logits.shape[0]
+    if bboxs_and_predictions_logits.shape[0] != 1:
+        raise ValueError("Batch size must be 1.")
+    
+    bboxs_and_predictions_logits = bboxs_and_predictions_logits[0]
+    
+    logits_classes = bboxs_and_predictions_logits[2:, :, :]
+    indices_class_predictions = torch.argmax(logits_classes, dim=0)
+
+    tensor_empty_class_index = torch.tensor(EMPTY_CLASS_INDEX)
+    tensor_empty_class_index_repeated = tensor_empty_class_index.repeat((GRID_SIZE, GRID_SIZE))
+
+    mask = (indices_class_predictions != tensor_empty_class_index_repeated)
+    centers_predictions = torch.nonzero(mask)
+
+    
+
+
+    
+    
+
+
+    
 
 def test(network, test_dataloader):
-    num_samples = len(test_dataloader)
     total_accuracy = 0
+    total_images = 0
+    for batch_index, ((imgs, bboxes, image_centers_grid_cell_coordinates, target_grids, targets), num_subimages) in enumerate(test_dataloader):  
+        imgs, bboxes, image_centers_grid_cell_coordinates, target_grids, targets = [tensor.to(device) for tensor in [imgs, bboxes, image_centers_grid_cell_coordinates, target_grids, targets]]
+        num_subimages = num_subimages[0]
 
-    for batch_index, (img, target) in enumerate(test_dataloader):
-        target = target.squeeze(0)
-        # image = img.squeeze(0)
-        # image = to_pil_image(image)
-        # image.show()
+        logits=network(imgs) 
+        bboxs_and_predictions_logits = logits
 
-        logits = network(img)
-        # print(logits)
-        
-       
+        total_accuracy += integer_accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages)
+        total_images += num_subimages
 
-        # image_centers_grid_cell_coordinates_y, image_centers_grid_cell_coordinates_x = image_centers_grid_cell_coordinates[0]
+    accuracy = total_accuracy / total_images
 
-        # logits_image_grid_cell = logits[0, :, image_centers_grid_cell_coordinates_y, image_centers_grid_cell_coordinates_x]
-        # logits_image_grid_cell_wide = logits[0, :, image_centers_grid_cell_coordinates_y-1:image_centers_grid_cell_coordinates_y+2, image_centers_grid_cell_coordinates_x-1:image_centers_grid_cell_coordinates_x+2]
+    #Log accuracy
+    logging.info(f"accuracy: {accuracy:.2f}")
+    
+    # Print accuracy
+    print(f"accuracy: {accuracy:.2f}")
+
+    return accuracy
+
+def display(network, test_dataloader):
+    for batch_index, ((imgs, bboxes, image_centers_grid_cell_coordinates, target_grids, targets), num_subimages) in enumerate(test_dataloader):  
+        imgs, bboxes, target_grids, targets = [tensor.to(device) for tensor in [imgs, bboxes, target_grids, targets]]
+        num_subimages = num_subimages[0]
+
+        logits=network(imgs) 
+        bboxs_and_predictions_logits = logits
 
 
-        # print(logits_image_grid_cell_wide[2:, :, :])
 
-        # logits_relative_width = logits_image_grid_cell[0]
-        # logits_relative_height = logits_image_grid_cell[1]
-
-        # logits_classes_image_grid_cell = logits_image_grid_cell[2:]
-
-        prediction = torch.argmax(logits.squeeze(0))
-
-        # print(prediction)
-        # bbox = bbox[0]
-        
-        # print(f"relative width and height: {bbox[3], bbox[2]}")
-        # print(f"target: {target}")
-
-        # print(f"prediction: {prediction}")
-        
-        # exit()
-        if(prediction == target):
-            total_accuracy +=1
-        
-        if(batch_index % 100 ==0):
-            print(batch_index/len(test_dataloader))
-    return total_accuracy/num_samples
 
 # Instantiate and load network
 multi_digit_net = multi_digit()
-state_dict = torch.load("./network/network_weights/network_weights_arch_1_train_debug.pth")
+state_dict = torch.load("./network/new_network_weights/arch_1.pth")
 multi_digit_net.load_state_dict(state_dict)
 
-accuracy = test(network=multi_digit_net, test_dataloader=test_dataloader)
-print(f"accuracy: {accuracy:.2f}")
+# Create logger
+logging.basicConfig(filename="./validation/logs/log.log", level=logging.INFO, format="%(message)s")
 
-# logging.info("") # Log the accuracy
+# Call test
+test(network=multi_digit_net, test_dataloader=test_dataloader)
+
+# Call display
+
+
 
 
 
