@@ -71,9 +71,6 @@ class multi_digit(nn.Module):
         # self.level_6_upsample = nn.Upsample(scale_factor=2, mode='nearest')
 
 
-
-
-
         # Number 2 (This is 13.563 billion flops. It was 13.458 billion flops 
         # before adding projections for residuals. Projections added .105 billion flops.)
         # Downsampling and upsampling with 1 in-between CNN layer for relevant height layers,
@@ -390,12 +387,6 @@ class multi_digit(nn.Module):
             # x = self.conv_1x1_linear_level_3_0(x)
             # x = self.activation(x)
             # x = self.conv_1x1_linear_level_3_1(x)
-
-
-
-
-
-
 
             # Number 3
             # Level 0 downsample

@@ -23,7 +23,7 @@ num_batches = len(train_dataloader)
 loss_categorical_cross_entropy= nn.CrossEntropyLoss(reduction= "none")
 loss_binary_cross_entropy = nn.BCEWithLogitsLoss(reduction = "none")
 
-def loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bboxes, image_center_grid_cell_coordinates, target_grids, num_subimages):
+def loss_from_bbox_and_class_predictions_grids(bboxes_and_predictions_logits, bboxes, image_center_grid_cell_coordinates, target_grids, num_subimages):
     # Get repeated batch indices for subimages
     num_batches = num_subimages.shape[0]
     batch_indices = torch.arange(num_batches, device=device)
@@ -44,11 +44,11 @@ def loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bbo
     image_center_grid_cell_coordinates_y = image_center_grid_cell_coordinates[batch_indices_subimages, subimage_indices_batches, 0]
     image_center_grid_cell_coordinates_x = image_center_grid_cell_coordinates[batch_indices_subimages, subimage_indices_batches, 1]
     
-    logits_image_relative_widths =  bboxs_and_predictions_logits[batch_indices_subimages, 0, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
-    logits_image_relative_heights =  bboxs_and_predictions_logits[batch_indices_subimages, 1, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
+    logits_image_relative_widths =  bboxes_and_predictions_logits[batch_indices_subimages, 0, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
+    logits_image_relative_heights =  bboxes_and_predictions_logits[batch_indices_subimages, 1, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
 
     # Get grid of class logits
-    logits_classes = bboxs_and_predictions_logits[:, 2:, :, :]
+    logits_classes = bboxes_and_predictions_logits[:, 2:, :, :]
 
     #Compute loss
     loss = 0.0
@@ -105,7 +105,7 @@ def loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bbo
     return loss
 
 # Get average accuracy of class predictions at subimage center cells
-def accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages):
+def accuracy_of_classes_at_subimage_center_cells(bboxes_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages):
     # Get repeated batch indices for subimages
     num_batches = num_subimages.shape[0]
     batch_indices = torch.arange(num_batches, device=device)
@@ -124,7 +124,7 @@ def accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, i
     image_center_grid_cell_coordinates_x = image_centers_grid_cell_coordinates[batch_indices_subimages, subimage_indices_batches, 1]
 
     # Get grid of class logits
-    logits_classes = bboxs_and_predictions_logits[:, 2:, :, :]
+    logits_classes = bboxes_and_predictions_logits[:, 2:, :, :]
 
     # Get class logits of subimage_center_cells
     logits_classes_subimage_center_cells = logits_classes[batch_indices_subimages, :, image_center_grid_cell_coordinates_y, image_center_grid_cell_coordinates_x]
@@ -147,7 +147,7 @@ def accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, i
 # batch elements per batch. 
 # Note that overlapping neighbors cells are involved in the average of neighbor cells
 # for each subimage center cell they neighbor
-def accuracy_of_classes_at_neighboring_cells_of_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages):
+def accuracy_of_classes_at_neighboring_cells_of_subimage_center_cells(bboxes_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages):
     # Get repeated batch indices for subimages
     num_batches = num_subimages.shape[0]
     batch_indices = torch.arange(num_batches, device=device)
@@ -189,7 +189,7 @@ def accuracy_of_classes_at_neighboring_cells_of_subimage_center_cells(bboxs_and_
     neighboring_cells_of_image_centers_grid_cell_coordinates_subimages = neighboring_cells_of_image_centers_grid_cell_coordinates_subimages[mask_in_range_cells, :]
 
     # Get grid of class logits
-    logits_classes = bboxs_and_predictions_logits[:, 2:, :, :]
+    logits_classes = bboxes_and_predictions_logits[:, 2:, :, :]
 
     # Get grid cell coordinates of neighboring cells for each of H and W dimensions
     neighboring_cells_of_image_centers_grid_cell_coordinates_subimages_y = neighboring_cells_of_image_centers_grid_cell_coordinates_subimages[:, 0]
@@ -233,9 +233,9 @@ def train(network, num_epochs, train_dataloader):
             
             logits=network(imgs)
             
-            bboxs_and_predictions_logits = logits
+            bboxes_and_predictions_logits = logits
             
-            loss = loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bboxes, image_centers_grid_cell_coordinates, target_grids, num_subimages)
+            loss = loss_from_bbox_and_class_predictions_grids(bboxes_and_predictions_logits, bboxes, image_centers_grid_cell_coordinates, target_grids, num_subimages)
             
             loss.backward()
 
@@ -243,8 +243,8 @@ def train(network, num_epochs, train_dataloader):
 
             # Summing for logging
             error+=loss.item()
-            error_of_classes_at_image_center_cells_total += (1.0 - accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages).item())
-            error_of_classes_at_neighboring_cells_of_subimage_center_cells_total += (1.0 - accuracy_of_classes_at_neighboring_cells_of_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages).item())
+            error_of_classes_at_image_center_cells_total += (1.0 - accuracy_of_classes_at_subimage_center_cells(bboxes_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages).item())
+            error_of_classes_at_neighboring_cells_of_subimage_center_cells_total += (1.0 - accuracy_of_classes_at_neighboring_cells_of_subimage_center_cells(bboxes_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages).item())
 
             # Logging
             if((batch_index +1) % LOG_INTERVAL == 0):
