@@ -1,0 +1,54 @@
+error: 3.92881 percent: 0.00
+avg_class_error_at_img_cell: 1.05263
+avg_class_error_at_neighboring_cells: 0.08882
+error: 3.79354 percent: 0.00
+avg_class_error_at_img_cell: 1.02564
+avg_class_error_at_neighboring_cells: 0.09615
+error: 3.72472 percent: 0.00
+avg_class_error_at_img_cell: 1.01695
+avg_class_error_at_neighboring_cells: 0.09675
+error: 3.67160 percent: 0.00
+avg_class_error_at_img_cell: 1.01266
+avg_class_error_at_neighboring_cells: 0.10219
+error: 3.62119 percent: 0.00
+avg_class_error_at_img_cell: 1.01010
+avg_class_error_at_neighboring_cells: 0.09870
+error: 3.57190 percent: 0.00
+avg_class_error_at_img_cell: 1.00840
+avg_class_error_at_neighboring_cells: 0.10128
+error: 3.52760 percent: 0.00
+avg_class_error_at_img_cell: 1.00719
+avg_class_error_at_neighboring_cells: 0.10124
+error: 3.49032 percent: 0.00
+avg_class_error_at_img_cell: 1.00629
+avg_class_error_at_neighboring_cells: 0.10056
+error: 3.93697 percent: 0.00
+avg_class_error_at_img_cell: 1.02193
+avg_class_error_at_neighboring_cells: 0.40899
+error: 3.79881 percent: 0.00
+avg_class_error_at_img_cell: 1.01068
+avg_class_error_at_neighboring_cells: 0.24439
+error: 3.73221 percent: 0.00
+avg_class_error_at_img_cell: 1.00706
+avg_class_error_at_neighboring_cells: 0.19562
+error: 3.67937 percent: 0.00
+avg_class_error_at_img_cell: 1.00527
+avg_class_error_at_neighboring_cells: 0.17220
+error: 3.63494 percent: 0.00
+avg_class_error_at_img_cell: 1.00421
+avg_class_error_at_neighboring_cells: 0.15762
+error: 3.58872 percent: 0.00
+avg_class_error_at_img_cell: 1.00350
+avg_class_error_at_neighboring_cells: 0.14977
+----------------------------
+error: 3.95485 percent: 0.00
+avg_class_error_at_img_cell: 1.02632
+avg_class_error_at_neighboring_cells: 0.38322
+----------------------------
+error: 3.82005 percent: 0.00
+avg_class_error_at_img_cell: 1.01282
+avg_class_error_at_neighboring_cells: 0.24092
+----------------------------
+error: 3.75740 percent: 0.00
+avg_class_error_at_img_cell: 1.00847
+avg_class_error_at_neighboring_cells: 0.19668

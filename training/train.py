@@ -1,5 +1,4 @@
 import logging
-import matplotlib.pyplot as plt
 import numpy as np
 import time
 import torch
@@ -16,8 +15,8 @@ from torch.utils.flop_counter import FlopCounterMode
 from torchvision.transforms import ToPILImage
 to_pil_image = ToPILImage()
 
-PRINT_INTERVAL = 30
-NUM_EPOCHS = 1
+LOG_INTERVAL = len(train_dataloader.dataset) / 30
+NUM_EPOCHS = 10
 num_batches = len(train_dataloader)
 
 #Instantiate losses
@@ -224,8 +223,8 @@ def accuracy_of_classes_at_neighboring_cells_of_subimage_center_cells(bboxs_and_
 def train(network, num_epochs, train_dataloader):
     for epoch in range(num_epochs):
         error = 0.0
-        accuracy_of_classes_at_image_center_cell = 0.0
-        accuracy_of_classes_at_neighboring_cells = 0.0
+        error_of_classes_at_image_center_cells_total = 0.0
+        error_of_classes_at_neighboring_cells_of_subimage_center_cells_total = 0.0
         for batch_index, ((imgs, bboxes, image_centers_grid_cell_coordinates, target_grids, targets), num_subimages) in enumerate(train_dataloader):  
             imgs, bboxes, image_centers_grid_cell_coordinates, target_grids, targets = [tensor.to(device) for tensor in [imgs, bboxes, image_centers_grid_cell_coordinates, target_grids, targets]]
             num_subimages = num_subimages.to(device)
@@ -236,72 +235,71 @@ def train(network, num_epochs, train_dataloader):
             
             bboxs_and_predictions_logits = logits
             
-            # accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages)
-            # accuracy_of_classes_at_neighboring_cells_of_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages)
-
             loss = loss_from_bbox_and_class_predictions_grids(bboxs_and_predictions_logits, bboxes, image_centers_grid_cell_coordinates, target_grids, num_subimages)
             
             loss.backward()
 
             optimizer.step()
 
+            # Summing for logging
             error+=loss.item()
+            error_of_classes_at_image_center_cells_total += (1.0 - accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages).item())
+            error_of_classes_at_neighboring_cells_of_subimage_center_cells_total += (1.0 - accuracy_of_classes_at_neighboring_cells_of_subimage_center_cells(bboxs_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages).item())
 
-            if((batch_index +1) % PRINT_INTERVAL == 0):
-                # print(logits)
-                # print(targets)
-                # Temporary
-                if((batch_index+1) % (PRINT_INTERVAL * 200) == 0):
-                    time.sleep(10)
-                avg_accuracy_of_classes_at_image_center_cell = accuracy_of_classes_at_image_center_cell / batch_index
-                avg_accuracy_of_classes_at_neighboring_cells = accuracy_of_classes_at_neighboring_cells / batch_index
+            # Logging
+            if((batch_index +1) % LOG_INTERVAL == 0):
+                # Compute averages of error and accuracies
                 avg_error = error / batch_index
+                avg_error_of_classes_at_image_center_cells = error_of_classes_at_image_center_cells_total / batch_index
+                avg_error_of_classes_at_neighboring_cells_of_subimage_center_cells = error_of_classes_at_neighboring_cells_of_subimage_center_cells_total / batch_index
+                
+                # Log averages of error and accuracies
                 error_log.append(avg_error)
+                error_of_classes_at_image_center_cells_log.append(avg_error_of_classes_at_image_center_cells)
+                error_of_classes_at_neighboring_cells_of_subimage_center_cells_log.append(avg_error_of_classes_at_neighboring_cells_of_subimage_center_cells)
 
-                # avg_accuracy = accuracy / batch_index
+                # Compute progress of the current epoch of the current batch_index
+                epoch_progress = (epoch + batch_index / num_batches) / num_epochs
 
-                epoch_progress = (epoch + batch_index / num_batches) / num_epochs # Calculate progress of the current epoch based on batch_index
-                # print(f"error: {avg_error:.5f} avg accuracy: {avg_accuracy:.2f} percent: {epoch_progress:.2f}")
+                # Print error and accuracies
+                logging.info("----------------------------")
+                logging.info(f"error: {avg_error:.5f} percent: {epoch_progress:.2f}")
+                logging.info(f"avg_class_error_at_img_cell: {avg_error_of_classes_at_image_center_cells:.5f}")
+                logging.info(f"avg_class_error_at_neighboring_cells: {avg_error_of_classes_at_neighboring_cells_of_subimage_center_cells:.5f}")
+
+                print("----------------------------")
                 print(f"error: {avg_error:.5f} percent: {epoch_progress:.2f}")
-                print(f"avg_class_accuracy_at_img_cell: {avg_accuracy_of_classes_at_image_center_cell} avg_class_accuracy_at_neighboring_cells: {avg_accuracy_of_classes_at_neighboring_cells}")
+                print(f"avg_class_error_at_img_cell: {avg_error_of_classes_at_image_center_cells:.5f}")
+                print(f"avg_class_error_at_neighboring_cells: {avg_error_of_classes_at_neighboring_cells_of_subimage_center_cells:.5f}")
 
-                logging.info("") # Log the printed error and epoch progress
-
-def plot_error(error_log, num_epochs):
-    num_samples = len(error_log)
-
-    log_intervals = [i * num_epochs/num_samples for i in range(num_samples)] # Calculate intervals based on num_samples and num_epochs
-    
-    plt.plot(log_intervals, error_log)
-    plt.xlabel("Epoch")
-    plt.ylabel("Error")
-    plt.show()
-    
-# Create logger to log training errors in specified directory
-logging.basicConfig(filename="./training/logs/training_error.log", level=logging.INFO)
 
 # Instantiate network
 multi_digit_net = multi_digit()
 multi_digit_net = multi_digit_net.to(device)
 
-#Temporary
-# state_dict = torch.load("./network/network_weights.pth")
-# multi_digit_net.load_state_dict(state_dict)
-
 # Instantiate optimizer
 optimizer = optim.SGD(multi_digit_net.parameters(),lr=.01)
 
+# Create logger
+logging.basicConfig(filename="./training/logs/log.log", level=logging.INFO, format="%(message)s")
+
+# Create arrays for logging
 error_log = []
+error_of_classes_at_image_center_cells_log = []
+error_of_classes_at_neighboring_cells_of_subimage_center_cells_log = []
 
 #Call train function
 train(network=multi_digit_net, num_epochs=NUM_EPOCHS, train_dataloader=train_dataloader)
 
 #Save network weights
-torch.save(multi_digit_net.state_dict(), "./network/network_weights/network_weights_arch_1_train_0.pth")
+torch.save(multi_digit_net.state_dict(), "./network/network_weights/arch_1.pth")
 
-# Save error log
+# Save logs by converting log arrays
+# to numpy arrays
 error_log_np = np.array(error_log)
-np.save("./training/logs/train_error_1.npy", error_log_np)
+error_of_classes_at_image_center_cells_log_np = np.array(error_of_classes_at_image_center_cells_log)
+error_of_classes_at_neighboring_cells_of_subimage_center_cells_log_np = np.array(error_of_classes_at_neighboring_cells_of_subimage_center_cells_log)
 
-#Call plot_error
-# plot_error(error_log=error_log, num_epochs=NUM_EPOCHS)
+np.save("./training/logs/train_error.npy", error_log_np)
+np.save("./training/logs/error_of_classes_at_image_center_cells.npy", error_of_classes_at_image_center_cells_log_np)
+np.save("./training/logs/error_of_classes_at_neighboring_cells_of_subimage_center_cells.npy", error_of_classes_at_neighboring_cells_of_subimage_center_cells_log_np)

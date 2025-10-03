@@ -210,7 +210,7 @@ def compute_target_grid(image_centers_grid_cell_coordinates, targets, num_subima
 # Define augmented MNIST dataset with bboxes to return (image, bboxs, targets)
 class AugmentedMNISTWithBBoxes(Dataset):
     def __init__(self, train=True, transform=None):
-        self.mnist_dataset = datasets.MNIST("./dataset",train=train, download=False,transform=transform)        
+        self.mnist_dataset = datasets.MNIST("./dataset",train=train, download=True,transform=transform)        
 
     def __len__(self):
         return len(self.mnist_dataset)

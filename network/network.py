@@ -143,10 +143,6 @@ class multi_digit(nn.Module):
         # # Upsampling
         # self.level_6_upsample = nn.Upsample(scale_factor=2, mode='nearest')
 
-
-
-
-
         # Number 3 (This is 796.426 million FLOPS).
         # Downsampling and upsampling with 1 in-between CNN layer for relevant height layers,
         # and with residuals to dimensions 8 x 8
