@@ -1,7 +1,0 @@
-{
-    "name": "Run Module",
-    "type": "python",
-    "request": "launch",
-    "module": "network.network",
-    "cwd": "/Users/rileyknutson/desktop/Multi-digit"
-  }
