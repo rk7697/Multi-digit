@@ -24,30 +24,21 @@ def integer_accuracy_of_classes_at_subimage_center_cells(bboxs_and_predictions_l
     return integer_accuracy_of_classes_at_subimage_center_cells
 
 # Requires batch size of 1
-def center_and_bbox_predictions(bboxs_and_predictions_logits):
-    num_batches = bboxs_and_predictions_logits.shape[0]
-    if bboxs_and_predictions_logits.shape[0] != 1:
-        raise ValueError("Batch size must be 1.")
+# def center_and_bbox_predictions(bboxs_and_predictions_logits):
+#     num_batches = bboxs_and_predictions_logits.shape[0]
+#     if bboxs_and_predictions_logits.shape[0] != 1:
+#         raise ValueError("Batch size must be 1.")
     
-    bboxs_and_predictions_logits = bboxs_and_predictions_logits[0]
+#     bboxs_and_predictions_logits = bboxs_and_predictions_logits[0]
     
-    logits_classes = bboxs_and_predictions_logits[2:, :, :]
-    indices_class_predictions = torch.argmax(logits_classes, dim=0)
+#     logits_classes = bboxs_and_predictions_logits[2:, :, :]
+#     indices_class_predictions = torch.argmax(logits_classes, dim=0)
 
-    tensor_empty_class_index = torch.tensor(EMPTY_CLASS_INDEX)
-    tensor_empty_class_index_repeated = tensor_empty_class_index.repeat((GRID_SIZE, GRID_SIZE))
+#     tensor_empty_class_index = torch.tensor(EMPTY_CLASS_INDEX)
+#     tensor_empty_class_index_repeated = tensor_empty_class_index.repeat((GRID_SIZE, GRID_SIZE))
 
-    mask = (indices_class_predictions != tensor_empty_class_index_repeated)
-    centers_predictions = torch.nonzero(mask)
-
-    
-
-
-    
-    
-
-
-    
+#     mask = (indices_class_predictions != tensor_empty_class_index_repeated)
+#     centers_predictions = torch.nonzero(mask)
 
 def test(network, test_dataloader):
     total_accuracy = 0

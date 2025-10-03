@@ -52,3 +52,7 @@ avg_class_error_at_neighboring_cells: 0.24092
 error: 3.75740 percent: 0.00
 avg_class_error_at_img_cell: 1.00847
 avg_class_error_at_neighboring_cells: 0.19668
+----------------------------
+error: 2.99991 percent: 0.00
+avg_class_error_at_img_cell: 1.00008
+avg_class_error_at_neighboring_cells: 0.10505
