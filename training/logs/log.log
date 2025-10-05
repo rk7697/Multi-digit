@@ -1198,3 +1198,11 @@ avg_class_error_at_neighboring_cells: 0.20106
 error: 1.55215 percent: 1.00
 avg_class_error_at_img_cell: 0.19524
 avg_class_error_at_neighboring_cells: 0.20099
+----------------------------
+error: 2.83573 percent: 0.00
+avg_class_error_at_img_cell: 0.98545
+avg_class_error_at_neighboring_cells: 0.11881
+----------------------------
+error: 2.86441 percent: 0.00
+avg_class_error_at_img_cell: 0.99412
+avg_class_error_at_neighboring_cells: 0.10947

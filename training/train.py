@@ -19,10 +19,6 @@ LOG_INTERVAL = len(train_dataloader.dataset) / 30
 NUM_EPOCHS = 10
 num_batches = len(train_dataloader)
 
-#Instantiate losses
-loss_categorical_cross_entropy= nn.CrossEntropyLoss(reduction= "none")
-loss_binary_cross_entropy = nn.BCEWithLogitsLoss(reduction = "none")
-
 def loss_from_bbox_and_class_predictions_grids(bboxes_and_predictions_logits, bboxes, image_center_grid_cell_coordinates, target_grids, num_subimages):
     # Get repeated batch indices for subimages
     num_batches = num_subimages.shape[0]
@@ -273,33 +269,38 @@ def train(network, num_epochs, train_dataloader):
                 print(f"avg_class_error_at_neighboring_cells: {avg_error_of_classes_at_neighboring_cells_of_subimage_center_cells:.5f}")
 
 
-# Instantiate network
-multi_digit_net = multi_digit()
-multi_digit_net = multi_digit_net.to(device)
+if __name__ == "__main__":
+    #Instantiate losses
+    loss_categorical_cross_entropy= nn.CrossEntropyLoss(reduction= "none")
+    loss_binary_cross_entropy = nn.BCEWithLogitsLoss(reduction = "none")
 
-# Instantiate optimizer
-optimizer = optim.SGD(multi_digit_net.parameters(),lr=.01)
+    # Instantiate network
+    multi_digit_net = multi_digit()
+    multi_digit_net = multi_digit_net.to(device)
 
-# Create logger
-logging.basicConfig(filename="./training/logs/log.log", level=logging.INFO, format="%(message)s")
+    # Instantiate optimizer
+    optimizer = optim.SGD(multi_digit_net.parameters(),lr=.01)
 
-# Create arrays for logging
-error_log = []
-error_of_classes_at_image_center_cells_log = []
-error_of_classes_at_neighboring_cells_of_subimage_center_cells_log = []
+    # Create logger
+    logging.basicConfig(filename="./training/logs/log.log", level=logging.INFO, format="%(message)s")
 
-#Call train function
-train(network=multi_digit_net, num_epochs=NUM_EPOCHS, train_dataloader=train_dataloader)
+    # Create arrays for logging
+    error_log = []
+    error_of_classes_at_image_center_cells_log = []
+    error_of_classes_at_neighboring_cells_of_subimage_center_cells_log = []
 
-#Save network weights
-torch.save(multi_digit_net.state_dict(), "./network/network_weights/arch_1.pth")
+    #Call train function
+    train(network=multi_digit_net, num_epochs=NUM_EPOCHS, train_dataloader=train_dataloader)
 
-# Save logs by converting log arrays
-# to numpy arrays
-error_log_np = np.array(error_log)
-error_of_classes_at_image_center_cells_log_np = np.array(error_of_classes_at_image_center_cells_log)
-error_of_classes_at_neighboring_cells_of_subimage_center_cells_log_np = np.array(error_of_classes_at_neighboring_cells_of_subimage_center_cells_log)
+    #Save network weights
+    torch.save(multi_digit_net.state_dict(), "./network/network_weights/arch_1.pth")
 
-np.save("./training/logs/train_error.npy", error_log_np)
-np.save("./training/logs/error_of_classes_at_image_center_cells.npy", error_of_classes_at_image_center_cells_log_np)
-np.save("./training/logs/error_of_classes_at_neighboring_cells_of_subimage_center_cells.npy", error_of_classes_at_neighboring_cells_of_subimage_center_cells_log_np)
+    # Save logs by converting log arrays
+    # to numpy arrays
+    error_log_np = np.array(error_log)
+    error_of_classes_at_image_center_cells_log_np = np.array(error_of_classes_at_image_center_cells_log)
+    error_of_classes_at_neighboring_cells_of_subimage_center_cells_log_np = np.array(error_of_classes_at_neighboring_cells_of_subimage_center_cells_log)
+
+    np.save("./training/logs/train_error.npy", error_log_np)
+    np.save("./training/logs/error_of_classes_at_image_center_cells.npy", error_of_classes_at_image_center_cells_log_np)
+    np.save("./training/logs/error_of_classes_at_neighboring_cells_of_subimage_center_cells.npy", error_of_classes_at_neighboring_cells_of_subimage_center_cells_log_np)

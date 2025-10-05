@@ -20,9 +20,10 @@ def plot_accuracies(error_of_classes_at_image_center_cells_log, error_of_classes
 
     plt.show()
 
-# Load errors as np arrays
-error_of_classes_at_image_center_cells_log_np = np.load("./training/logs/error_of_classes_at_image_center_cells.npy")
-error_of_classes_at_neighboring_cells_of_subimage_center_cells_log_np = np.load("./training/logs/error_of_classes_at_neighboring_cells_of_subimage_center_cells.npy")
+if __name__ == "__main__":
+    # Load errors as np arrays
+    error_of_classes_at_image_center_cells_log_np = np.load("./training/logs/error_of_classes_at_image_center_cells.npy")
+    error_of_classes_at_neighboring_cells_of_subimage_center_cells_log_np = np.load("./training/logs/error_of_classes_at_neighboring_cells_of_subimage_center_cells.npy")
 
-# Call plot accuracies
-plot_accuracies(error_of_classes_at_image_center_cells_log_np, error_of_classes_at_neighboring_cells_of_subimage_center_cells_log_np, NUM_EPOCHS)
+    # Call plot accuracies
+    plot_accuracies(error_of_classes_at_image_center_cells_log_np, error_of_classes_at_neighboring_cells_of_subimage_center_cells_log_np, NUM_EPOCHS)

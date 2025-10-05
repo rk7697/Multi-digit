@@ -25,10 +25,9 @@ def integer_accuracy_of_classes_at_subimage_center_cells(bboxes_and_predictions_
     if num_batches != 1 or bboxes_and_predictions_logits.shape[0] != 1 or image_centers_grid_cell_coordinates.shape[0] !=1 or target_grids.shape[0] !=1:
         raise ValueError("Batch size must be 1.")
     
-    num_subimages = num_subimages[0]
-    accuracy_of_classes_at_subimage_center_cells = accuracy_of_classes_at_subimage_center_cells(bboxes_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages).item()
+    accuracy_classes_at_subimage_center_cells = accuracy_of_classes_at_subimage_center_cells(bboxes_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages).item()
     
-    integer_accuracy_of_classes_at_subimage_center_cells = int(num_subimages * accuracy_of_classes_at_subimage_center_cells)
+    integer_accuracy_of_classes_at_subimage_center_cells = int(num_subimages * accuracy_classes_at_subimage_center_cells)
     return integer_accuracy_of_classes_at_subimage_center_cells
 
 # Requires batch size of 1
@@ -98,7 +97,7 @@ def test(network, test_dataloader):
 
         logits=network(imgs) 
         bboxes_and_predictions_logits = logits
-
+        
         total_accuracy += integer_accuracy_of_classes_at_subimage_center_cells(bboxes_and_predictions_logits, image_centers_grid_cell_coordinates, target_grids, num_subimages)
         total_images += num_subimages
 
@@ -118,7 +117,7 @@ def display(network, test_dataloader, num_images):
     for i in range(num_images):
         ((imgs, bboxes, image_centers_grid_cell_coordinates, target_grids, targets), num_subimages) = next(test_dataloader_iter)
         imgs, bboxes, target_grids, targets = [tensor.to(device) for tensor in [imgs, bboxes, target_grids, targets]]
-
+        
         logits=network(imgs) 
         bboxes_and_predictions_logits = logits
 
@@ -133,24 +132,21 @@ def display(network, test_dataloader, num_images):
         image_with_bboxes = draw_bounding_boxes(image = img, boxes = image_bbox_predictions, colors = bbox_colors)
     
         img_pil = to_pil_image(image_with_bboxes)
+        img_pil.show()
         img_pil.save(f"./assets/images/img_{i}.png")    
 
-# Instantiate and load network
-multi_digit_net = multi_digit()
-state_dict = torch.load("./network/network_weights/arch_1.pth")
-multi_digit_net.load_state_dict(state_dict)
-multi_digit_net = multi_digit_net.to(device)
+if __name__ == "__main__":
+    # Instantiate and load network
+    multi_digit_net = multi_digit()
+    state_dict = torch.load("./network/network_weights/arch_1.pth")
+    multi_digit_net.load_state_dict(state_dict)
+    multi_digit_net = multi_digit_net.to(device)
 
-# Create logger
-logging.basicConfig(filename="./validation/logs/log.log", level=logging.INFO, format="%(message)s")
+    # Create logger
+    logging.basicConfig(filename="./validation/logs/log.log", level=logging.INFO, format="%(message)s")
 
-# Call test
-test(network=multi_digit_net, test_dataloader=test_dataloader)
+    # Call test
+    test(network=multi_digit_net, test_dataloader=test_dataloader)
 
-# Call display
-display(network=multi_digit_net, test_dataloader=test_dataloader, num_images=5)
-
-
-
-
-
+    # Call display
+    display(network=multi_digit_net, test_dataloader=test_dataloader, num_images=5)
