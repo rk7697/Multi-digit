@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Riley K
+# License: GNU AGPL v3
+
 from torch.utils.data import DataLoader
 from .datasets import (
     train_dataset,

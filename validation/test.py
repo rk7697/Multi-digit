@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Riley K
+# License: GNU AGPL v3
+
 from __init__ import device
 from datasets.datasets import EMPTY_CLASS_INDEX, NEW_SIZE_HEIGHT, NEW_SIZE_WIDTH
 from datasets.dataloaders import (

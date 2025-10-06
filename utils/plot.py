@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Riley K
+# License: GNU AGPL v3
+
 import matplotlib.pyplot as plt
 import numpy as np
 from training.train import NUM_EPOCHS

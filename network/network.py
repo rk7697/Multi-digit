@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Riley K
+# License: GNU AGPL v3
+
 import torch
 import torch.nn as nn
 from __init__ import device

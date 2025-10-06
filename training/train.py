@@ -1,3 +1,6 @@
+# Copyright (C) 2025 Riley K
+# License: GNU AGPL v3
+
 import logging
 import numpy as np
 import time
